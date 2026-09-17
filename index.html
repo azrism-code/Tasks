@@ -7,8 +7,8 @@
   <meta name="description" content="A simple bilingual task manager">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css">
-  <title>Azri Tasks</title>
+  <link rel="stylesheet" href="./style.css?v=1.1.0">
+  <title>Azri Tasks v1.1.0</title>
 </head>
 <body>
   <div id="login" class="login-screen">
@@ -22,7 +22,7 @@
 
   <main id="app" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">✓</span><span>Tasks</span></div>
+      <div class="brand"><span class="brand-mark">✓</span><span>Tasks</span><small class="version">v1.1.0</small></div>
       <p class="side-label" data-i18n="areas">Areas</p>
       <nav class="area-nav">
         <button data-area="work" class="active">▣ <span data-i18n="work">Work</span><b id="workCount">0</b></button>
@@ -34,7 +34,7 @@
 
     <section class="workspace">
       <header class="mobile-header">
-        <div class="brand"><span class="brand-mark">✓</span><span>Tasks</span></div>
+        <div class="brand"><span class="brand-mark">✓</span><span>Tasks</span><small class="version">v1.1.0</small></div>
         <button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button>
       </header>
       <div class="content">
@@ -93,6 +93,6 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=1.1.0"></script>
 </body>
 </html>
