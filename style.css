@@ -66,3 +66,19 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 [dir=rtl] .sidebar .area-nav button.active{box-shadow:0 7px 18px #07112655,inset -4px 0 #8db5ff}
 .sidebar .area-nav button.active b{background:#ffffff2e;color:#fff}
 .mobile-area-switch button.active{background:#2463eb;border-color:#2463eb;color:#fff;box-shadow:0 5px 14px #2463eb42;font-weight:800}
+
+/* v1.4 quick entry and urgency */
+.task-card.active-task{grid-template-columns:auto auto auto minmax(0,1fr) auto}
+.urgent-btn{width:28px;height:34px;border:0;background:transparent;color:#c4cbd6;font-size:1.25rem;cursor:pointer;padding:0}
+.urgent-btn.active{color:#f0a000}
+.task-card.urgent{border-color:#f1c35f;box-shadow:inset 4px 0 #f0a000,0 3px 12px #1f35520a}
+[dir=rtl] .task-card.urgent{box-shadow:inset -4px 0 #f0a000,0 3px 12px #1f35520a}
+.quick-add{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:8px;margin-top:12px}
+.quick-add input{min-width:0;height:46px;border:1px solid #cfd8e6;border-radius:12px;background:#fff;padding:0 14px;outline:0}
+.quick-add input:focus{border-color:#75a0f4;box-shadow:0 0 0 3px #75a0f42c}
+.quick-add button{border:0;border-radius:12px;background:var(--blue);color:#fff;font-size:1.35rem;cursor:pointer}
+.quick-add input:disabled{opacity:.6}
+@media(max-width:760px){
+  .task-card.active-task{grid-template-columns:auto auto auto minmax(0,1fr) auto;gap:7px}
+  .drag-handle,.urgent-btn,.complete-btn{width:24px}
+}
