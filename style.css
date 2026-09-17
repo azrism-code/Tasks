@@ -41,3 +41,7 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 
 .version{font-size:.68rem;font-weight:600;color:#8190a9;margin-inline-start:2px;white-space:nowrap}.mobile-header .version{color:#8fa4c4}
+
+.category-tab[dir="ltr"],#categoryTitle[dir="ltr"]{text-align:left}
+.category-tab[dir="rtl"],#categoryTitle[dir="rtl"]{text-align:right}
+#menuLogoutBtn{color:var(--danger)}
