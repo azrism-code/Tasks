@@ -126,6 +126,7 @@ function render() {
   $("#privateCount").textContent=state.tasks.filter(x=>x.area==="private"&&!x.completedAt).length;
   $("#addTaskTop").classList.toggle("hidden",state.view==="history");
   $("#addTaskFab").classList.toggle("hidden",state.view==="history");
+  $("#quickAddForm").classList.toggle("hidden",state.view==="history");
   $("#viewTitle").classList.toggle("hidden",state.view!=="history");
   $("#viewTitle").textContent="היסטוריה";
   renderCategories(); renderTasks();
@@ -145,13 +146,14 @@ function renderTasks() {
   const items=state.tasks.filter(task=>task.area===state.area&&task.categoryId===state.selected&&(state.view==="history"?!!task.completedAt:!task.completedAt)).sort((a,b)=>state.view==="history"?(b.completedAt?.seconds||0)-(a.completedAt?.seconds||0):(a.order??-(a.createdAt?.seconds||0))-(b.order??-(b.createdAt?.seconds||0)));
   $("#taskCount").textContent=`${items.length} ${t("taskCount")}`;
   $("#taskList").innerHTML=items.length?items.map(task=>`
-    <article class="task-card ${state.view==="tasks"?"active-task":"history-task"}" data-task-id="${task.id}">
-      ${state.view==="tasks"?`<button class="drag-handle" data-drag="${task.id}" aria-label="Drag to reorder">⠿</button>`:""}
+    <article class="task-card ${state.view==="tasks"?"active-task":"history-task"} ${task.urgent?"urgent":""}" data-task-id="${task.id}">
+      ${state.view==="tasks"?`<button class="drag-handle" data-drag="${task.id}" aria-label="Drag to reorder">⠿</button><button class="urgent-btn ${task.urgent?"active":""}" data-urgent="${task.id}" aria-label="סימון כדחוף">★</button>`:""}
       ${state.view==="tasks"?`<button class="complete-btn" data-complete="${task.id}" aria-label="${t("done")}">✓</button>`:`<span class="history-check">✓</span>`}
       <div class="task-copy"><p dir="${isHebrew(task.text)?"rtl":"ltr"}">${escapeHtml(task.text)}</p>${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
       <div class="task-actions"><button class="icon-btn" data-actions="${task.id}" aria-label="Task options">•••</button></div>
     </article>`).join(""):`<div class="empty"><b>${t("empty")}</b><span>${t("emptyHint")}</span></div>`;
-  $$("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
+  $("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
+  $("[data-urgent]").forEach(el=>el.onclick=()=>{const task=state.tasks.find(x=>x.id===el.dataset.urgent);safe(()=>updateDoc(userDoc("tasks",task.id),{urgent:!task.urgent,updatedAt:serverTimestamp()}));});
   $$("[data-actions]").forEach(el=>el.onclick=event=>{event.stopPropagation();openTaskMenu(el,state.tasks.find(x=>x.id===el.dataset.actions));});
   if(state.view==="tasks") initTaskDragging();
 }
@@ -200,12 +202,24 @@ function openTask(task=null) {
   $("#taskText").value=task?.text||""; $("#taskText").placeholder=t("taskPlaceholder"); $("#taskText").dir=isHebrew($("#taskText").value)?"rtl":"ltr";
   $("#taskDialog").showModal(); setTimeout(()=>$("#taskText").focus(),50);
 }
+async function createTask(value){
+  const maxOrder=Math.max(0,...state.tasks.filter(x=>x.categoryId===state.selected&&!x.completedAt).map(x=>x.order||0));
+  await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,createdAt:serverTimestamp(),completedAt:null});
+}
+
+async function quickAddTask(event){
+  event.preventDefault(); const input=$("#quickTaskText"); const value=input.value.trim(); if(!value||!state.selected)return;
+  input.disabled=true;
+  await safe(async()=>{await createTask(value);input.value="";input.focus();toast(t("saved"));});
+  input.disabled=false;
+}
+
 async function saveTask(event) {
   event.preventDefault(); const value=$("#taskText").value.trim(); if(!value)return;
   const saveButton=$("#saveTaskBtn"); saveButton.disabled=true;
   await safe(async()=>{
     if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,updatedAt:serverTimestamp()});
-    else { const maxOrder=Math.max(0,...state.tasks.filter(x=>x.categoryId===state.selected&&!x.completedAt).map(x=>x.order||0)); await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,createdAt:serverTimestamp(),completedAt:null}); }
+    else await createTask(value);
     $("#taskDialog").close(); toast(t("saved"));
   });
   saveButton.disabled=false;
@@ -236,6 +250,15 @@ async function moveTask(event) {
   event.preventDefault();await safe(async()=>{await updateDoc(userDoc("tasks",state.movingTask.id),{categoryId:$("#moveTarget").value,updatedAt:serverTimestamp()});$("#moveDialog").close();toast(t("saved"));});
 }
 
+async function historyCategoryId(task){
+  if(state.categories.some(category=>category.id===task.categoryId))return task.categoryId;
+  const existing=state.categories.find(category=>category.area===task.area&&category.name==="כללי");
+  if(existing)return existing.id;
+  const id=`general-${task.area}`;
+  await setDoc(userDoc("categories",id),{name:"כללי",area:task.area,order:999999,createdAt:serverTimestamp()},{merge:true});
+  return id;
+}
+
 function openConfirm(type,item) {
   closeMenus();state.confirmAction={type,item};
   const title={complete:"completeTitle",delete:"deleteTitle",restore:"restoreTitle",deleteList:"deleteListTitle"}[type];
@@ -246,7 +269,7 @@ function openConfirm(type,item) {
 async function confirmAction(event) {
   event.preventDefault();const {type,item}=state.confirmAction;
   await safe(async()=>{
-    if(type==="complete")await updateDoc(userDoc("tasks",item.id),{completedAt:serverTimestamp()});
+    if(type==="complete"){const categoryId=await historyCategoryId(item);await updateDoc(userDoc("tasks",item.id),{categoryId,completedAt:serverTimestamp()});}
     if(type==="restore")await updateDoc(userDoc("tasks",item.id),{completedAt:null});
     if(type==="delete")await deleteDoc(userDoc("tasks",item.id));
     if(type==="deleteList"){
@@ -273,6 +296,7 @@ $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
 $("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#categoryName").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
+$("#quickAddForm").onsubmit=quickAddTask;
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
 $$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
 $$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
