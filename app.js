@@ -50,7 +50,7 @@ const text = {
   }
 };
 
-const state = { user:null, language:localStorage.getItem("tasks-language") || "en", area:"work", view:"tasks", selected:"integration", categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[] };
+const state = { user:null, language:localStorage.getItem("tasks-language") || "en", area:"work", view:"tasks", selected:"integration", categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -90,9 +90,7 @@ function startSync() {
     render();
   }));
   state.unsubs.push(onSnapshot(userCollection("tasks"), snapshot => {
-    state.tasks=snapshot.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>{
-      const av=a.createdAt?.seconds||0,bv=b.createdAt?.seconds||0; return bv-av;
-    });
+    state.tasks=snapshot.docs.map(d=>({id:d.id,...d.data()}));
     render();
   }));
 }
@@ -111,18 +109,15 @@ function selectArea(area) {
   state.selected=state.categories.find(c=>c.area===area)?.id || "";
   closeMenus(); render();
 }
-function closeMenus(){ $$(".action-menu,.category-menu").forEach(el=>el.remove()); }
+function closeMenus(){ $(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); }
 
 function render() {
   document.documentElement.lang=state.language;
   document.documentElement.dir=state.language==="he"?"rtl":"ltr";
   $$("[data-i18n]").forEach(el=>el.textContent=t(el.dataset.i18n));
-  $("#languageBtn").textContent=state.language==="en"?"עברית":"English";
-  $("#mobileLanguageBtn").textContent=state.language==="en"?"עב":"EN";
+  $("#menuLanguageBtn span").textContent=state.language==="en"?"עברית":"English";
   $$("[data-view]").forEach(el=>el.classList.toggle("active",el.dataset.view===state.view));
   $$("[data-area]").forEach(el=>el.classList.toggle("active",el.dataset.area===state.area));
-  $("#areaTitle").textContent=t(state.area);
-  $("#viewLabel").textContent=t(state.view).toUpperCase();
   $("#workCount").textContent=state.tasks.filter(x=>x.area==="work"&&!x.completedAt).length;
   $("#privateCount").textContent=state.tasks.filter(x=>x.area==="private"&&!x.completedAt).length;
   $("#addTaskTop").classList.toggle("hidden",state.view==="history");
@@ -140,16 +135,40 @@ function renderCategories() {
 function renderTasks() {
   const category=state.categories.find(c=>c.id===state.selected);
   $("#categoryTitle").textContent=category?.name || "";
-  const items=state.tasks.filter(task=>task.area===state.area&&task.categoryId===state.selected&&(state.view==="history"?!!task.completedAt:!task.completedAt));
+  const items=state.tasks.filter(task=>task.area===state.area&&task.categoryId===state.selected&&(state.view==="history"?!!task.completedAt:!task.completedAt)).sort((a,b)=>state.view==="history"?(b.completedAt?.seconds||0)-(a.completedAt?.seconds||0):(a.order??-(a.createdAt?.seconds||0))-(b.order??-(b.createdAt?.seconds||0)));
   $("#taskCount").textContent=`${items.length} ${t("taskCount")}`;
   $("#taskList").innerHTML=items.length?items.map(task=>`
-    <article class="task-card">
+    <article class="task-card ${state.view==="tasks"?"active-task":"history-task"}" data-task-id="${task.id}">
+      ${state.view==="tasks"?`<button class="drag-handle" data-drag="${task.id}" aria-label="Drag to reorder">⠿</button>`:""}
       ${state.view==="tasks"?`<button class="complete-btn" data-complete="${task.id}" aria-label="${t("done")}">✓</button>`:`<span class="history-check">✓</span>`}
       <div class="task-copy"><p dir="${isHebrew(task.text)?"rtl":"ltr"}">${escapeHtml(task.text)}</p>${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
       <div class="task-actions"><button class="icon-btn" data-actions="${task.id}" aria-label="Task options">•••</button></div>
     </article>`).join(""):`<div class="empty"><b>${t("empty")}</b><span>${t("emptyHint")}</span></div>`;
   $$("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
-  $$("[data-actions]").forEach(el=>el.onclick=event=>{event.stopPropagation();openTaskMenu(el,state.tasks.find(x=>x.id===el.dataset.actions));});
+  $("[data-actions]").forEach(el=>el.onclick=event=>{event.stopPropagation();openTaskMenu(el,state.tasks.find(x=>x.id===el.dataset.actions));});
+  if(state.view==="tasks") initTaskDragging();
+}
+
+function initTaskDragging(){
+  $("[data-drag]").forEach(handle=>handle.onpointerdown=event=>{
+    event.preventDefault(); closeMenus();
+    const card=handle.closest(".task-card"); state.dragging=true; card.classList.add("dragging");
+    handle.setPointerCapture(event.pointerId);
+    handle.onpointermove=moveEvent=>{
+      if(!state.dragging)return;
+      const target=document.elementFromPoint(moveEvent.clientX,moveEvent.clientY)?.closest(".task-card");
+      if(!target||target===card||target.parentElement!==card.parentElement)return;
+      const box=target.getBoundingClientRect();
+      target.parentElement.insertBefore(card,moveEvent.clientY<box.top+box.height/2?target:target.nextSibling);
+    };
+    handle.onpointerup=async()=>{
+      if(!state.dragging)return; state.dragging=false; card.classList.remove("dragging");
+      handle.onpointermove=null; handle.onpointerup=null;
+      const ids=$("#taskList .task-card").map(el=>el.dataset.taskId);
+      await safe(()=>Promise.all(ids.map((id,index)=>updateDoc(userDoc("tasks",id),{order:(index+1)*1000,updatedAt:serverTimestamp()}))));
+    };
+    handle.onpointercancel=handle.onpointerup;
+  });
 }
 
 function openTaskMenu(anchor,task) {
@@ -168,19 +187,21 @@ function openTaskMenu(anchor,task) {
 function openTask(task=null) {
   closeMenus(); state.editingTask=task;
   const category=state.categories.find(c=>c.id===state.selected);
+  if(!category){toast(t("error"));return;}
   $("#taskDialogTitle").textContent=task?t("editTask"):t("newTask");
   $("#taskDialogCategory").textContent=category?.name||"";
   $("#taskText").value=task?.text||""; $("#taskText").placeholder=t("taskPlaceholder"); $("#taskText").dir=isHebrew($("#taskText").value)?"rtl":"ltr";
   $("#taskDialog").showModal(); setTimeout(()=>$("#taskText").focus(),50);
 }
 async function saveTask(event) {
-  if (event.submitter?.value==="cancel") return;
   event.preventDefault(); const value=$("#taskText").value.trim(); if(!value)return;
+  const saveButton=$("#saveTaskBtn"); saveButton.disabled=true;
   await safe(async()=>{
     if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,updatedAt:serverTimestamp()});
-    else await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,createdAt:serverTimestamp(),completedAt:null});
+    else { const maxOrder=Math.max(0,...state.tasks.filter(x=>x.categoryId===state.selected&&!x.completedAt).map(x=>x.order||0)); await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,createdAt:serverTimestamp(),completedAt:null}); }
     $("#taskDialog").close(); toast(t("saved"));
   });
+  saveButton.disabled=false;
 }
 
 function openCategory(category=null) {
@@ -190,7 +211,6 @@ function openCategory(category=null) {
   $("#categoryDialog").showModal(); setTimeout(()=>$("#categoryName").focus(),50);
 }
 async function saveCategory(event) {
-  if(event.submitter?.value==="cancel")return;
   event.preventDefault();const name=$("#categoryName").value.trim();if(!name)return;
   await safe(async()=>{
     if(state.editingCategory) await updateDoc(userDoc("categories",state.editingCategory.id),{name});
@@ -206,7 +226,6 @@ function openMove(task) {
   $("#moveDialog").showModal();
 }
 async function moveTask(event) {
-  if(event.submitter?.value==="cancel")return;
   event.preventDefault();await safe(async()=>{await updateDoc(userDoc("tasks",state.movingTask.id),{categoryId:$("#moveTarget").value,updatedAt:serverTimestamp()});$("#moveDialog").close();toast(t("saved"));});
 }
 
@@ -218,7 +237,6 @@ function openConfirm(type,item) {
   $("#confirmButton").className=type==="delete"||type==="deleteList"?"danger-btn":"primary-btn";$("#confirmDialog").showModal();
 }
 async function confirmAction(event) {
-  if(event.submitter?.value==="cancel")return;
   event.preventDefault();const {type,item}=state.confirmAction;
   await safe(async()=>{
     if(type==="complete")await updateDoc(userDoc("tasks",item.id),{completedAt:serverTimestamp()});
@@ -241,12 +259,15 @@ function openCategoryMenu() {
 }
 
 $("#loginBtn").onclick=login;$("#logoutBtn").onclick=()=>signOut(auth);
-[$("#languageBtn"),$("#mobileLanguageBtn")].forEach(button=>button.onclick=()=>{state.language=state.language==="en"?"he":"en";localStorage.setItem("tasks-language",state.language);render();});
-$$("[data-view]").forEach(el=>el.onclick=()=>{state.view=el.dataset.view;closeMenus();render();});
+$("#menuLanguageBtn").onclick=()=>{state.language=state.language==="en"?"he":"en";localStorage.setItem("tasks-language",state.language);closeMenus();render();};
+$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.insetInlineEnd=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
+$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
 $("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
-document.addEventListener("click",event=>{if(!event.target.closest(".task-actions")&&!event.target.closest("#categoryMenuBtn"))closeMenus();});
+$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
+$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
+document.addEventListener("click",event=>{if(!event.target.closest(".task-actions")&&!event.target.closest("#categoryMenuBtn")&&!event.target.closest("#appMenu"))closeMenus();});
 if("serviceWorker" in navigator)navigator.serviceWorker.register("./service-worker.js");
 render();
