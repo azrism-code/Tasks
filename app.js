@@ -69,6 +69,7 @@ async function safe(action) { try { await action(); } catch (error) { console.er
 
 let voiceRecognition=null;
 let voiceListening=false;
+let voiceSupported=true;
 
 function setVoiceButton(listening){
   const button=$("#voiceTaskBtn");
@@ -81,8 +82,14 @@ function initVoiceInput(){
   const status=$("#voiceStatus");
   const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SpeechRecognition){
-    button.disabled=true;
-    status.textContent="הכתבה קולית אינה נתמכת בדפדפן זה";
+    voiceSupported=false;
+    button.disabled=false;
+    button.onclick=()=>{
+      $("#taskText").focus();
+      status.textContent="הדפדפן הזה אינו תומך בזיהוי דיבור. פתח ב-Chrome או השתמש במיקרופון שבמקלדת.";
+      toast("זיהוי דיבור אינו נתמך בדפדפן הזה");
+    };
+    status.textContent="להכתבה קולית יש לפתוח את האפליקציה ב-Chrome";
     return;
   }
   voiceRecognition=new SpeechRecognition();
@@ -121,7 +128,7 @@ function initVoiceInput(){
 function resetVoiceInput(){
   if(voiceListening&&voiceRecognition)voiceRecognition.stop();
   setVoiceButton(false);
-  $("#voiceStatus").textContent=state.area==="private"?"זיהוי דיבור בעברית":"Speech recognition in English";
+  $("#voiceStatus").textContent=voiceSupported?(state.area==="private"?"זיהוי דיבור בעברית":"Speech recognition in English"):"להכתבה קולית יש לפתוח את האפליקציה ב-Chrome";
 }
 
 async function login() {
