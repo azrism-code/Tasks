@@ -49,7 +49,9 @@ const text = {
   }
 };
 
-const state = { user:null, language:"he", area:"work", view:"tasks", selected:"integration", categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false };
+const lastArea=["work","private"].includes(localStorage.getItem("tasks-last-area"))?localStorage.getItem("tasks-last-area"):"work";
+const savedCategory = area => localStorage.getItem(`tasks-selected-${area}`) || "";
+const state = { user:null, language:"he", area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -85,7 +87,8 @@ function startSync() {
   state.unsubs.forEach(unsub=>unsub()); state.unsubs=[];
   state.unsubs.push(onSnapshot(userCollection("categories"), snapshot => {
     state.categories=snapshot.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.order||0)-(b.order||0));
-    if (!state.categories.some(c=>c.id===state.selected&&c.area===state.area)) state.selected=state.categories.find(c=>c.area===state.area)?.id || "";
+    if (!state.categories.some(c=>c.id===state.selected&&c.area===state.area)) state.selected=state.categories.find(c=>c.id===savedCategory(state.area)&&c.area===state.area)?.id || state.categories.find(c=>c.area===state.area)?.id || "";
+    if(state.selected)localStorage.setItem(`tasks-selected-${state.area}`,state.selected);
     render();
   }));
   state.unsubs.push(onSnapshot(userCollection("tasks"), snapshot => {
@@ -106,7 +109,9 @@ onAuthStateChanged(auth, async user => {
 
 function selectArea(area) {
   state.area=area;
-  state.selected=state.categories.find(c=>c.area===area)?.id || "";
+  localStorage.setItem("tasks-last-area",area);
+  state.selected=state.categories.find(c=>c.id===savedCategory(area)&&c.area===area)?.id || state.categories.find(c=>c.area===area)?.id || "";
+  if(state.selected)localStorage.setItem(`tasks-selected-${area}`,state.selected);
   closeMenus(); render();
 }
 function closeMenus(){ $$(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); }
@@ -121,13 +126,15 @@ function render() {
   $("#privateCount").textContent=state.tasks.filter(x=>x.area==="private"&&!x.completedAt).length;
   $("#addTaskTop").classList.toggle("hidden",state.view==="history");
   $("#addTaskFab").classList.toggle("hidden",state.view==="history");
+  $("#viewTitle").classList.toggle("hidden",state.view!=="history");
+  $("#viewTitle").textContent="היסטוריה";
   renderCategories(); renderTasks();
 }
 
 function renderCategories() {
   const categories=state.categories.filter(c=>c.area===state.area);
-  $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}" dir="auto">${escapeHtml(c.name)}</button>`).join("")+`<button id="addCategory" class="category-add" aria-label="Add list">＋</button>`;
-  $$("[data-category]").forEach(el=>el.onclick=()=>{state.selected=el.dataset.category;closeMenus();render();});
+  $("#categoryTabs").innerHTML=categories.map(c=>{const count=state.tasks.filter(task=>task.categoryId===c.id&&(state.view==="history"?!!task.completedAt:!task.completedAt)).length;return `<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}"><span class="category-name" dir="auto">${escapeHtml(c.name)}</span><span class="category-count">${count}</span></button>`;}).join("")+`<button id="addCategory" class="category-add" aria-label="Add list">＋</button>`;
+  $$("[data-category]").forEach(el=>el.onclick=()=>{state.selected=el.dataset.category;localStorage.setItem(`tasks-selected-${state.area}`,state.selected);closeMenus();render();});
   $("#addCategory").onclick=()=>openCategory();
 }
 
@@ -244,7 +251,7 @@ async function confirmAction(event) {
     if(type==="delete")await deleteDoc(userDoc("tasks",item.id));
     if(type==="deleteList"){
       if(state.tasks.some(task=>task.categoryId===item.id)){toast(t("listNotEmpty"));$("#confirmDialog").close();return;}
-      await deleteDoc(userDoc("categories",item.id));state.selected=state.categories.find(c=>c.area===state.area&&c.id!==item.id)?.id||"";
+      await deleteDoc(userDoc("categories",item.id));state.selected=state.categories.find(c=>c.area===state.area&&c.id!==item.id)?.id||"";if(state.selected)localStorage.setItem(`tasks-selected-${state.area}`,state.selected);
     }
     $("#confirmDialog").close();
   });
