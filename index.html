@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -8,21 +8,21 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="./style.css?v=1.1.0">
-  <title>Azri Tasks v1.1.0</title>
+  <title>Azri Tasks v1.2.0</title>
 </head>
 <body>
   <div id="login" class="login-screen">
     <div class="login-card">
       <span class="brand-mark">✓</span>
       <h1>Azri Tasks</h1>
-      <p>Simple tasks. Available everywhere.</p>
-      <button id="loginBtn" class="primary-btn">Continue with Google</button>
+      <p>המשימות שלך, פשוט ובכל מקום.</p>
+      <button id="loginBtn" class="primary-btn">התחברות עם Google</button>
     </div>
   </div>
 
   <main id="app" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">✓</span><span>Tasks</span><small class="version">v1.1.0</small></div>
+      <div class="brand"><span class="brand-mark">✓</span><span>משימות</span><small class="version">v1.2.0</small></div>
       <p class="side-label" data-i18n="areas">Areas</p>
       <nav class="area-nav">
         <button data-area="work" class="active">▣ <span data-i18n="work">Work</span><b id="workCount">0</b></button>
@@ -34,7 +34,7 @@
 
     <section class="workspace">
       <header class="mobile-header">
-        <div class="brand"><span class="brand-mark">✓</span><span>Tasks</span><small class="version">v1.1.0</small></div>
+        <div class="brand"><span class="brand-mark">✓</span><span>משימות</span><small class="version">v1.2.0</small></div>
         <button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button>
       </header>
       <div class="content">
@@ -57,7 +57,7 @@
   <div id="appMenu" class="app-menu hidden">
     <button data-menu-view="tasks">⌂ <span data-i18n="tasks">Tasks</span></button>
     <button data-menu-view="history">↶ <span data-i18n="history">History</span></button>
-    <button id="menuLanguageBtn">🌐 <span>עברית</span></button>
+    <button id="menuLogoutBtn">↪ <span>יציאה</span></button>
   </div>
 
   <dialog id="taskDialog">
@@ -71,7 +71,7 @@
   <dialog id="categoryDialog">
     <form method="dialog" id="categoryForm">
       <header><h2 id="categoryDialogTitle">New list</h2><button type="button" data-close-dialog="categoryDialog" class="close-btn">×</button></header>
-      <input id="categoryName" required>
+      <input id="categoryName" dir="auto" required>
       <footer><button type="button" data-close-dialog="categoryDialog" class="secondary-btn" data-i18n="cancel">Cancel</button><button type="submit" class="primary-btn" data-i18n="save">Save</button></footer>
     </form>
   </dialog>
