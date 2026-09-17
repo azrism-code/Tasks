@@ -100,3 +100,7 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 .voice-dialog-btn.listening{background:#d93648;border-color:#d93648;color:#fff;box-shadow:0 0 0 4px #d9364824}
 .voice-dialog-btn:disabled{opacity:.55;cursor:not-allowed}
 #voiceStatus{color:var(--muted);font-size:.8rem}
+
+/* v1.6.2 urgency is controlled from the task menu */
+.task-card.active-task{grid-template-columns:auto auto minmax(0,1fr) auto}
+@media(max-width:760px){.task-card.active-task{grid-template-columns:auto auto minmax(0,1fr) auto}}
