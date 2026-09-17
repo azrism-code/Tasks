@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
-  onSnapshot, getDocs, serverTimestamp
+  onSnapshot, getDocs, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -223,22 +223,46 @@ function renderTasks() {
 function initTaskDragging(){
   $$("[data-drag]").forEach(handle=>handle.onpointerdown=event=>{
     event.preventDefault(); closeMenus();
-    const card=handle.closest(".task-card"); state.dragging=true; card.classList.add("dragging");
+    const card=handle.closest(".task-card");
+    const list=card.parentElement;
+    const siblings=[...list.querySelectorAll(".task-card")].filter(item=>item!==card);
+    const startY=event.clientY;
+    let currentY=startY;
+    let targetIndex=siblings.indexOf(card);
+    state.dragging=true;
+    card.classList.add("dragging");
     handle.setPointerCapture(event.pointerId);
+
+    const markTarget=()=>{
+      siblings.forEach(item=>item.classList.remove("drop-target"));
+      const center=card.getBoundingClientRect().top-(currentY-startY)+card.offsetHeight/2+(currentY-startY);
+      targetIndex=siblings.findIndex(item=>center<item.getBoundingClientRect().top+item.offsetHeight/2);
+      if(targetIndex<0)targetIndex=siblings.length;
+      if(siblings[targetIndex])siblings[targetIndex].classList.add("drop-target");
+    };
+
     handle.onpointermove=moveEvent=>{
       if(!state.dragging)return;
-      const target=document.elementFromPoint(moveEvent.clientX,moveEvent.clientY)?.closest(".task-card");
-      if(!target||target===card||target.parentElement!==card.parentElement)return;
-      const box=target.getBoundingClientRect();
-      target.parentElement.insertBefore(card,moveEvent.clientY<box.top+box.height/2?target:target.nextSibling);
+      moveEvent.preventDefault();
+      currentY=moveEvent.clientY;
+      card.style.transform=`translateY(${currentY-startY}px) scale(1.01)`;
+      markTarget();
     };
-    handle.onpointerup=async()=>{
-      if(!state.dragging)return; state.dragging=false; card.classList.remove("dragging");
-      handle.onpointermove=null; handle.onpointerup=null;
-      const ids=$$("#taskList .task-card").map(el=>el.dataset.taskId);
-      await safe(()=>Promise.all(ids.map((id,index)=>updateDoc(userDoc("tasks",id),{order:(index+1)*1000,updatedAt:serverTimestamp()}))));
+
+    const finish=async()=>{
+      if(!state.dragging)return;
+      state.dragging=false;
+      siblings.forEach(item=>item.classList.remove("drop-target"));
+      card.classList.remove("dragging");
+      card.style.transform="";
+      if(siblings[targetIndex])list.insertBefore(card,siblings[targetIndex]);else list.append(card);
+      handle.onpointermove=null;handle.onpointerup=null;handle.onpointercancel=null;
+      const ids=$$("#taskList .task-card").map(item=>item.dataset.taskId);
+      await safe(async()=>{const batch=writeBatch(db);ids.forEach((id,index)=>batch.update(userDoc("tasks",id),{order:(index+1)*1000,updatedAt:serverTimestamp()}));await batch.commit();});
     };
-    handle.onpointercancel=handle.onpointerup;
+
+    handle.onpointerup=finish;
+    handle.onpointercancel=finish;
   });
 }
 
