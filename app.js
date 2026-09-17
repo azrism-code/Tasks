@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
-  onSnapshot, getDocs, serverTimestamp, enableIndexedDbPersistence
+  onSnapshot, getDocs, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -17,7 +17,6 @@ const firebaseConfig = {
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
-enableIndexedDbPersistence(db).catch(() => {});
 
 const defaults = [
   ["integration","Integration","work",10],["training","Training","work",20],["lab","LAB","work",30],
@@ -101,7 +100,8 @@ onAuthStateChanged(auth, async user => {
   $("#app").classList.toggle("hidden",!user);
   if (!user) { state.unsubs.forEach(unsub=>unsub()); state.unsubs=[]; return; }
   $("#userName").textContent=user.email || user.displayName || "";
-  await safe(async()=>{ await seedCategories(); startSync(); });
+  startSync();
+  safe(seedCategories);
 });
 
 function selectArea(area) {
