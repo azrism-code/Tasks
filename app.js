@@ -50,8 +50,7 @@ const text = {
   }
 };
 
-const areaLanguage = area => localStorage.getItem(`tasks-language-${area}`) || (area==="private"?"he":"en");
-const state = { user:null, language:areaLanguage("work"), area:"work", view:"tasks", selected:"integration", categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false };
+const state = { user:null, language:"he", area:"work", view:"tasks", selected:"integration", categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -107,17 +106,15 @@ onAuthStateChanged(auth, async user => {
 
 function selectArea(area) {
   state.area=area;
-  state.language=areaLanguage(area);
   state.selected=state.categories.find(c=>c.area===area)?.id || "";
   closeMenus(); render();
 }
 function closeMenus(){ $$(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); }
 
 function render() {
-  document.documentElement.lang=state.language;
-  document.documentElement.dir=state.language==="he"?"rtl":"ltr";
+  document.documentElement.lang="he";
+  document.documentElement.dir="rtl";
   $$("[data-i18n]").forEach(el=>el.textContent=t(el.dataset.i18n));
-  $("#menuLanguageBtn span").textContent=state.language==="he"?"שפה: עברית":"Language: English";
   $$("[data-view]").forEach(el=>el.classList.toggle("active",el.dataset.view===state.view));
   $$("[data-area]").forEach(el=>el.classList.toggle("active",el.dataset.area===state.area));
   $("#workCount").textContent=state.tasks.filter(x=>x.area==="work"&&!x.completedAt).length;
@@ -129,7 +126,7 @@ function render() {
 
 function renderCategories() {
   const categories=state.categories.filter(c=>c.area===state.area);
-  $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}">${escapeHtml(c.name)}</button>`).join("")+`<button id="addCategory" class="category-add" aria-label="Add list">＋</button>`;
+  $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}" dir="auto">${escapeHtml(c.name)}</button>`).join("")+`<button id="addCategory" class="category-add" aria-label="Add list">＋</button>`;
   $$("[data-category]").forEach(el=>el.onclick=()=>{state.selected=el.dataset.category;closeMenus();render();});
   $("#addCategory").onclick=()=>openCategory();
 }
@@ -137,6 +134,7 @@ function renderCategories() {
 function renderTasks() {
   const category=state.categories.find(c=>c.id===state.selected);
   $("#categoryTitle").textContent=category?.name || "";
+  $("#categoryTitle").dir="auto";
   const items=state.tasks.filter(task=>task.area===state.area&&task.categoryId===state.selected&&(state.view==="history"?!!task.completedAt:!task.completedAt)).sort((a,b)=>state.view==="history"?(b.completedAt?.seconds||0)-(a.completedAt?.seconds||0):(a.order??-(a.createdAt?.seconds||0))-(b.order??-(b.createdAt?.seconds||0)));
   $("#taskCount").textContent=`${items.length} ${t("taskCount")}`;
   $("#taskList").innerHTML=items.length?items.map(task=>`
@@ -260,13 +258,14 @@ function openCategoryMenu() {
   menu.querySelector('[data-cat="delete"]').onclick=()=>openConfirm("deleteList",category);
 }
 
-$("#loginBtn").onclick=login;$("#logoutBtn").onclick=()=>signOut(auth);
-$("#menuLanguageBtn").onclick=()=>{state.language=state.language==="en"?"he":"en";localStorage.setItem(`tasks-language-${state.area}`,state.language);closeMenus();render();};
+$("#loginBtn").onclick=login;
+[$("#logoutBtn"),$("#menuLogoutBtn")].forEach(button=>button.onclick=()=>signOut(auth));
 $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
 $$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
 $("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
+$("#categoryName").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
 $$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
 $$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
