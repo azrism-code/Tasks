@@ -50,7 +50,8 @@ const text = {
   }
 };
 
-const state = { user:null, language:localStorage.getItem("tasks-language") || "en", area:"work", view:"tasks", selected:"integration", categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false };
+const areaLanguage = area => localStorage.getItem(`tasks-language-${area}`) || (area==="private"?"he":"en");
+const state = { user:null, language:areaLanguage("work"), area:"work", view:"tasks", selected:"integration", categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -106,6 +107,7 @@ onAuthStateChanged(auth, async user => {
 
 function selectArea(area) {
   state.area=area;
+  state.language=areaLanguage(area);
   state.selected=state.categories.find(c=>c.area===area)?.id || "";
   closeMenus(); render();
 }
@@ -115,7 +117,7 @@ function render() {
   document.documentElement.lang=state.language;
   document.documentElement.dir=state.language==="he"?"rtl":"ltr";
   $$("[data-i18n]").forEach(el=>el.textContent=t(el.dataset.i18n));
-  $("#menuLanguageBtn span").textContent=state.language==="en"?"עברית":"English";
+  $("#menuLanguageBtn span").textContent=state.language==="he"?"שפה: עברית":"Language: English";
   $$("[data-view]").forEach(el=>el.classList.toggle("active",el.dataset.view===state.view));
   $$("[data-area]").forEach(el=>el.classList.toggle("active",el.dataset.area===state.area));
   $("#workCount").textContent=state.tasks.filter(x=>x.area==="work"&&!x.completedAt).length;
@@ -259,7 +261,7 @@ function openCategoryMenu() {
 }
 
 $("#loginBtn").onclick=login;$("#logoutBtn").onclick=()=>signOut(auth);
-$("#menuLanguageBtn").onclick=()=>{state.language=state.language==="en"?"he":"en";localStorage.setItem("tasks-language",state.language);closeMenus();render();};
+$("#menuLanguageBtn").onclick=()=>{state.language=state.language==="en"?"he":"en";localStorage.setItem(`tasks-language-${state.area}`,state.language);closeMenus();render();};
 $(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
 $("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
