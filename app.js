@@ -210,13 +210,12 @@ function renderTasks() {
   $("#taskCount").textContent=`${items.length} ${t("taskCount")}`;
   $("#taskList").innerHTML=items.length?items.map(task=>`
     <article class="task-card ${state.view==="tasks"?"active-task":"history-task"} ${task.urgent?"urgent":""}" data-task-id="${task.id}">
-      ${state.view==="tasks"?`<button class="drag-handle" data-drag="${task.id}" aria-label="Drag to reorder">⠿</button><button class="urgent-btn ${task.urgent?"active":""}" data-urgent="${task.id}" aria-label="${task.urgent?"ביטול דחיפות":"סימון כדחוף"}">${task.urgent?"★":"☆"}</button>`:""}
+      ${state.view==="tasks"?`<button class="drag-handle" data-drag="${task.id}" aria-label="שינוי סדר">⠿</button>`:""}
       ${state.view==="tasks"?`<button class="complete-btn" data-complete="${task.id}" aria-label="${t("done")}">✓</button>`:`<span class="history-check">✓</span>`}
       <div class="task-copy"><p dir="${isHebrew(task.text)?"rtl":"ltr"}">${escapeHtml(task.text)}</p>${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
       <div class="task-actions"><button class="icon-btn" data-actions="${task.id}" aria-label="Task options">•••</button></div>
     </article>`).join(""):`<div class="empty"><b>${t("empty")}</b><span>${t("emptyHint")}</span></div>`;
   $$("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
-  $$("[data-urgent]").forEach(el=>el.onclick=()=>toggleUrgent(state.tasks.find(x=>x.id===el.dataset.urgent)));
   $$("[data-actions]").forEach(el=>el.onclick=event=>{event.stopPropagation();openTaskMenu(el,state.tasks.find(x=>x.id===el.dataset.actions));});
   if(state.view==="tasks") initTaskDragging();
 }
