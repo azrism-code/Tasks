@@ -108,3 +108,14 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 /* v1.6.3 visible touch reordering */
 .task-card.dragging{transition:none!important;position:relative;z-index:20;opacity:.88;box-shadow:0 14px 34px #10213f35}
 .task-card.drop-target{outline:2px dashed var(--blue);outline-offset:2px}
+
+/* v1.6.6 wrap subcategories instead of horizontal scrolling */
+.category-tabs{flex-wrap:wrap;overflow:visible;gap:6px;border-bottom:0;align-content:flex-start}
+.category-tab{border:1px solid #dbe3ee;border-radius:10px;background:#fff;padding:9px 12px}
+.category-tab.active{background:#e8f0ff;border-color:#8cb2f6}
+.category-tab.active:after{display:none}
+.category-add{margin:0}
+@media(max-width:760px){
+  .category-tabs{margin:10px 0 0;padding:0;gap:6px}
+  .category-tab{padding:8px 10px}
+}
