@@ -236,7 +236,7 @@ function initTaskDragging(){
 
     const markTarget=()=>{
       siblings.forEach(item=>item.classList.remove("drop-target"));
-      const center=card.getBoundingClientRect().top-(currentY-startY)+card.offsetHeight/2+(currentY-startY);
+      const center=card.getBoundingClientRect().top+card.offsetHeight/2;
       targetIndex=siblings.findIndex(item=>center<item.getBoundingClientRect().top+item.offsetHeight/2);
       if(targetIndex<0)targetIndex=siblings.length;
       if(siblings[targetIndex])siblings[targetIndex].classList.add("drop-target");
