@@ -1,5 +1,5 @@
-const CACHE = "azri-tasks-v20";
-const FILES = ["./", "./index.html", "./style.css?v=1.6.5-2c5e96e2", "./app.js?v=1.6.5-0c95a5a4", "./manifest.webmanifest", "./icon.svg"];
+const CACHE = "azri-tasks-v21";
+const FILES = ["./", "./index.html", "./style.css?v=1.6.6-3792d5c0", "./app.js?v=1.6.6-0c95a5a4", "./manifest.webmanifest", "./icon.svg"];
 self.addEventListener("install", event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES))));
 self.addEventListener("activate", event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))));
 self.addEventListener("fetch", event => {
