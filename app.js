@@ -225,10 +225,11 @@ function initTaskDragging(){
     event.preventDefault(); closeMenus();
     const card=handle.closest(".task-card");
     const list=card.parentElement;
-    const siblings=[...list.querySelectorAll(".task-card")].filter(item=>item!==card);
+    const allCards=[...list.querySelectorAll(".task-card")];
+    const siblings=allCards.filter(item=>item!==card);
     const startY=event.clientY;
     let currentY=startY;
-    let targetIndex=siblings.indexOf(card);
+    let targetIndex=allCards.indexOf(card);
     state.dragging=true;
     card.classList.add("dragging");
     handle.setPointerCapture(event.pointerId);
