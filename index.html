@@ -23,34 +23,22 @@
   <main id="app" class="app-shell hidden">
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">✓</span><span>Tasks</span></div>
-      <nav class="main-nav">
-        <button data-view="tasks" class="active">⌂ <span data-i18n="tasks">Tasks</span></button>
-        <button data-view="history">↶ <span data-i18n="history">History</span></button>
-      </nav>
       <p class="side-label" data-i18n="areas">Areas</p>
       <nav class="area-nav">
         <button data-area="work" class="active">▣ <span data-i18n="work">Work</span><b id="workCount">0</b></button>
         <button data-area="private">⌂ <span data-i18n="private">Private</span><b id="privateCount">0</b></button>
       </nav>
       <div class="spacer"></div>
-      <button id="languageBtn" class="outline-btn">עברית</button>
       <button id="logoutBtn" class="user-button"><span id="userName"></span><small data-i18n="signout">Sign out</small></button>
     </aside>
 
     <section class="workspace">
       <header class="mobile-header">
         <div class="brand"><span class="brand-mark">✓</span><span>Tasks</span></div>
-        <button id="mobileLanguageBtn" class="outline-btn">עב</button>
+        <button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button>
       </header>
-      <div class="mobile-view-switch">
-        <button data-view="tasks" class="active" data-i18n="tasks">Tasks</button>
-        <button data-view="history" data-i18n="history">History</button>
-      </div>
       <div class="content">
-        <div class="top-row">
-          <div><div id="viewLabel" class="eyebrow">TASKS</div><h1 id="areaTitle">Work</h1></div>
-          <button id="addTaskTop" class="primary-btn">＋ <span data-i18n="addTask">Add task</span></button>
-        </div>
+        <div class="desktop-toolbar"><button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button></div>
         <div class="mobile-area-switch">
           <button data-area="work" class="active" data-i18n="work">Work</button>
           <button data-area="private" data-i18n="private">Private</button>
@@ -58,7 +46,7 @@
         <div id="categoryTabs" class="category-tabs"></div>
         <div class="list-heading">
           <div><h2 id="categoryTitle"></h2><span id="taskCount"></span></div>
-          <button id="categoryMenuBtn" class="icon-btn" aria-label="List options">•••</button>
+          <div class="list-actions"><button id="addTaskTop" class="primary-btn">＋ <span data-i18n="addTask">Add task</span></button><button id="categoryMenuBtn" class="icon-btn" aria-label="List options">•••</button></div>
         </div>
         <section id="taskList" class="task-list"></section>
       </div>
@@ -66,35 +54,41 @@
     </section>
   </main>
 
+  <div id="appMenu" class="app-menu hidden">
+    <button data-menu-view="tasks">⌂ <span data-i18n="tasks">Tasks</span></button>
+    <button data-menu-view="history">↶ <span data-i18n="history">History</span></button>
+    <button id="menuLanguageBtn">🌐 <span>עברית</span></button>
+  </div>
+
   <dialog id="taskDialog">
     <form method="dialog" id="taskForm">
-      <header><div><h2 id="taskDialogTitle">New task</h2><p id="taskDialogCategory"></p></div><button value="cancel" class="close-btn">×</button></header>
+      <header><div><h2 id="taskDialogTitle">New task</h2><p id="taskDialogCategory"></p></div><button type="button" data-close-dialog="taskDialog" class="close-btn">×</button></header>
       <textarea id="taskText" rows="5" required></textarea>
-      <footer><button value="cancel" class="secondary-btn" data-i18n="cancel">Cancel</button><button id="saveTaskBtn" value="default" class="primary-btn" data-i18n="save">Save</button></footer>
+      <footer><button type="button" data-close-dialog="taskDialog" class="secondary-btn" data-i18n="cancel">Cancel</button><button id="saveTaskBtn" type="submit" class="primary-btn" data-i18n="save">Save</button></footer>
     </form>
   </dialog>
 
   <dialog id="categoryDialog">
     <form method="dialog" id="categoryForm">
-      <header><h2 id="categoryDialogTitle">New list</h2><button value="cancel" class="close-btn">×</button></header>
+      <header><h2 id="categoryDialogTitle">New list</h2><button type="button" data-close-dialog="categoryDialog" class="close-btn">×</button></header>
       <input id="categoryName" required>
-      <footer><button value="cancel" class="secondary-btn" data-i18n="cancel">Cancel</button><button value="default" class="primary-btn" data-i18n="save">Save</button></footer>
+      <footer><button type="button" data-close-dialog="categoryDialog" class="secondary-btn" data-i18n="cancel">Cancel</button><button type="submit" class="primary-btn" data-i18n="save">Save</button></footer>
     </form>
   </dialog>
 
   <dialog id="moveDialog">
     <form method="dialog" id="moveForm">
-      <header><h2 data-i18n="moveTask">Move task</h2><button value="cancel" class="close-btn">×</button></header>
+      <header><h2 data-i18n="moveTask">Move task</h2><button type="button" data-close-dialog="moveDialog" class="close-btn">×</button></header>
       <select id="moveTarget"></select>
-      <footer><button value="cancel" class="secondary-btn" data-i18n="cancel">Cancel</button><button value="default" class="primary-btn" data-i18n="move">Move</button></footer>
+      <footer><button type="button" data-close-dialog="moveDialog" class="secondary-btn" data-i18n="cancel">Cancel</button><button type="submit" class="primary-btn" data-i18n="move">Move</button></footer>
     </form>
   </dialog>
 
   <dialog id="confirmDialog">
     <form method="dialog" id="confirmForm">
-      <header><h2 id="confirmTitle"></h2><button value="cancel" class="close-btn">×</button></header>
+      <header><h2 id="confirmTitle"></h2><button type="button" data-close-dialog="confirmDialog" class="close-btn">×</button></header>
       <p id="confirmBody"></p>
-      <footer><button value="cancel" class="secondary-btn" data-i18n="cancel">Cancel</button><button id="confirmButton" value="default" class="danger-btn">Confirm</button></footer>
+      <footer><button type="button" data-close-dialog="confirmDialog" class="secondary-btn" data-i18n="cancel">Cancel</button><button id="confirmButton" type="submit" class="danger-btn">Confirm</button></footer>
     </form>
   </dialog>
 
