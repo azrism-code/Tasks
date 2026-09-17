@@ -82,3 +82,9 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
   .task-card.active-task{grid-template-columns:auto auto auto minmax(0,1fr) auto;gap:7px}
   .drag-handle,.urgent-btn,.complete-btn{width:24px}
 }
+
+/* v1.5 voice task entry */
+.quick-add{grid-template-columns:minmax(0,1fr) 44px 44px}
+.quick-add .voice-btn{background:#e9eef7;color:#40516b;font-size:1.08rem}
+.quick-add .voice-btn.listening{background:#d93648;color:#fff;box-shadow:0 0 0 4px #d9364824}
+.quick-add .quick-save-btn{background:var(--blue);color:#fff}
