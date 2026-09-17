@@ -60,3 +60,9 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
   .mobile-header .app-menu-btn{position:absolute;right:10px;top:10px}
   .view-title{font-size:1.25rem;margin:0 2px 8px}
 }
+
+/* v1.3.1 stronger primary-area selection */
+.sidebar .area-nav button.active{background:#2463eb;color:#fff;box-shadow:0 7px 18px #07112655,inset 4px 0 #8db5ff;font-weight:800}
+[dir=rtl] .sidebar .area-nav button.active{box-shadow:0 7px 18px #07112655,inset -4px 0 #8db5ff}
+.sidebar .area-nav button.active b{background:#ffffff2e;color:#fff}
+.mobile-area-switch button.active{background:#2463eb;border-color:#2463eb;color:#fff;box-shadow:0 5px 14px #2463eb42;font-weight:800}
