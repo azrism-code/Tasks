@@ -67,30 +67,61 @@ function formatDate(value) {
 }
 async function safe(action) { try { await action(); } catch (error) { console.error(error); toast(t("error")); } }
 
+let voiceRecognition=null;
+let voiceListening=false;
+
+function setVoiceButton(listening){
+  const button=$("#voiceTaskBtn");
+  button.classList.toggle("listening",listening);
+  button.innerHTML=listening?"⏹️ <span>עצור הקלטה</span>":"🎙️ <span>הקלט משימה</span>";
+}
+
 function initVoiceInput(){
   const button=$("#voiceTaskBtn");
+  const status=$("#voiceStatus");
   const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SpeechRecognition){button.classList.add("hidden");return;}
-  const recognition=new SpeechRecognition();
-  recognition.continuous=false;
-  recognition.interimResults=true;
+  if(!SpeechRecognition){
+    button.disabled=true;
+    status.textContent="הכתבה קולית אינה נתמכת בדפדפן זה";
+    return;
+  }
+  voiceRecognition=new SpeechRecognition();
+  voiceRecognition.continuous=false;
+  voiceRecognition.interimResults=true;
+  voiceRecognition.maxAlternatives=1;
   let baseText="";
   button.onclick=()=>{
-    if(button.classList.contains("listening")){recognition.stop();return;}
-    const input=$("#quickTaskText");
+    if(voiceListening){voiceRecognition.stop();return;}
+    const input=$("#taskText");
     baseText=input.value.trim();
-    recognition.lang=state.area==="private"?"he-IL":"en-US";
-    try{recognition.start();button.classList.add("listening");button.textContent="⏹";input.placeholder="מקשיב…";}catch(error){console.error(error);}
+    voiceRecognition.lang=state.area==="private"?"he-IL":"en-US";
+    status.textContent=state.area==="private"?"מקשיב בעברית…":"Listening in English…";
+    try{voiceRecognition.start();}catch(error){console.error(error);status.textContent="לא ניתן להתחיל הקלטה. נסה שוב.";}
   };
-  recognition.onresult=event=>{
+  voiceRecognition.onstart=()=>{voiceListening=true;setVoiceButton(true);};
+  voiceRecognition.onresult=event=>{
     let transcript="";
     for(let index=0;index<event.results.length;index++)transcript+=event.results[index][0].transcript;
-    const input=$("#quickTaskText");
+    const input=$("#taskText");
     input.value=[baseText,transcript.trim()].filter(Boolean).join(" ");
     input.dir=isHebrew(input.value)?"rtl":"ltr";
   };
-  recognition.onerror=event=>{console.error(event.error);toast(event.error==="not-allowed"?"יש לאשר גישה למיקרופון":"לא הצלחתי לזהות את הדיבור");};
-  recognition.onend=()=>{button.classList.remove("listening");button.textContent="🎙️";$("#quickTaskText").placeholder="הוספת משימה מהירה…";$("#quickTaskText").focus();};
+  voiceRecognition.onerror=event=>{
+    console.error(event.error);
+    const messages={"not-allowed":"יש לאשר הרשאת מיקרופון בהגדרות האתר","no-speech":"לא זוהה דיבור. לחץ ונסה שוב.","audio-capture":"לא נמצא מיקרופון זמין","network":"שגיאת רשת בזיהוי הדיבור"};
+    status.textContent=messages[event.error]||"לא הצלחתי לזהות את הדיבור";
+  };
+  voiceRecognition.onend=()=>{
+    voiceListening=false;setVoiceButton(false);
+    if(!status.textContent.includes("לא")&&!status.textContent.includes("שגיאת"))status.textContent="ההקלטה הסתיימה — ניתן לערוך ולשמור";
+    $("#taskText").focus();
+  };
+}
+
+function resetVoiceInput(){
+  if(voiceListening&&voiceRecognition)voiceRecognition.stop();
+  setVoiceButton(false);
+  $("#voiceStatus").textContent=state.area==="private"?"זיהוי דיבור בעברית":"Speech recognition in English";
 }
 
 async function login() {
@@ -152,7 +183,6 @@ function render() {
   $("#privateCount").textContent=state.tasks.filter(x=>x.area==="private"&&!x.completedAt).length;
   $("#addTaskTop").classList.toggle("hidden",state.view==="history");
   $("#addTaskFab").classList.toggle("hidden",state.view==="history");
-  $("#quickAddForm").classList.toggle("hidden",state.view==="history");
   $("#viewTitle").classList.toggle("hidden",state.view!=="history");
   $("#viewTitle").textContent="היסטוריה";
   renderCategories(); renderTasks();
@@ -229,18 +259,12 @@ function openTask(task=null) {
   $("#taskDialogTitle").textContent=task?t("editTask"):t("newTask");
   $("#taskDialogCategory").textContent=category?.name||"";
   $("#taskText").value=task?.text||""; $("#taskText").placeholder=t("taskPlaceholder"); $("#taskText").dir=isHebrew($("#taskText").value)?"rtl":"ltr";
+  resetVoiceInput();
   $("#taskDialog").showModal(); setTimeout(()=>$("#taskText").focus(),50);
 }
 async function createTask(value){
   const maxOrder=Math.max(0,...state.tasks.filter(x=>x.categoryId===state.selected&&!x.completedAt).map(x=>x.order||0));
   await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,createdAt:serverTimestamp(),completedAt:null});
-}
-
-async function quickAddTask(event){
-  event.preventDefault(); const input=$("#quickTaskText"); const value=input.value.trim(); if(!value||!state.selected)return;
-  input.disabled=true;
-  await safe(async()=>{await createTask(value);input.value="";input.focus();toast(t("saved"));});
-  input.disabled=false;
 }
 
 async function saveTask(event) {
@@ -326,7 +350,6 @@ $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
 $("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#categoryName").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
-$("#quickAddForm").onsubmit=quickAddTask;
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
 $$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
 $$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
