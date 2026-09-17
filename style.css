@@ -93,3 +93,10 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 .urgent-btn{color:#7f8b9d;font-size:1.45rem}
 .urgent-btn:hover{background:#fff5dc;border-radius:8px;color:#d69000}
 .urgent-btn.active{color:#e49300;background:#fff5dc;border-radius:8px}
+
+/* v1.6 voice input in regular task dialog */
+.voice-entry{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px}
+.voice-dialog-btn{min-height:42px;border:1px solid #b9c6d9;border-radius:11px;background:#eef3fb;color:#243b60;padding:0 14px;font-weight:750;cursor:pointer}
+.voice-dialog-btn.listening{background:#d93648;border-color:#d93648;color:#fff;box-shadow:0 0 0 4px #d9364824}
+.voice-dialog-btn:disabled{opacity:.55;cursor:not-allowed}
+#voiceStatus{color:var(--muted);font-size:.8rem}
