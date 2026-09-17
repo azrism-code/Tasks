@@ -152,8 +152,8 @@ function renderTasks() {
       <div class="task-copy"><p dir="${isHebrew(task.text)?"rtl":"ltr"}">${escapeHtml(task.text)}</p>${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
       <div class="task-actions"><button class="icon-btn" data-actions="${task.id}" aria-label="Task options">•••</button></div>
     </article>`).join(""):`<div class="empty"><b>${t("empty")}</b><span>${t("emptyHint")}</span></div>`;
-  $("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
-  $("[data-urgent]").forEach(el=>el.onclick=()=>{const task=state.tasks.find(x=>x.id===el.dataset.urgent);safe(()=>updateDoc(userDoc("tasks",task.id),{urgent:!task.urgent,updatedAt:serverTimestamp()}));});
+  $$("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
+  $$("[data-urgent]").forEach(el=>el.onclick=()=>{const task=state.tasks.find(x=>x.id===el.dataset.urgent);safe(()=>updateDoc(userDoc("tasks",task.id),{urgent:!task.urgent,updatedAt:serverTimestamp()}));});
   $$("[data-actions]").forEach(el=>el.onclick=event=>{event.stopPropagation();openTaskMenu(el,state.tasks.find(x=>x.id===el.dataset.actions));});
   if(state.view==="tasks") initTaskDragging();
 }
