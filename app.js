@@ -67,6 +67,32 @@ function formatDate(value) {
 }
 async function safe(action) { try { await action(); } catch (error) { console.error(error); toast(t("error")); } }
 
+function initVoiceInput(){
+  const button=$("#voiceTaskBtn");
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRecognition){button.classList.add("hidden");return;}
+  const recognition=new SpeechRecognition();
+  recognition.continuous=false;
+  recognition.interimResults=true;
+  let baseText="";
+  button.onclick=()=>{
+    if(button.classList.contains("listening")){recognition.stop();return;}
+    const input=$("#quickTaskText");
+    baseText=input.value.trim();
+    recognition.lang=state.area==="private"?"he-IL":"en-US";
+    try{recognition.start();button.classList.add("listening");button.textContent="⏹";input.placeholder="מקשיב…";}catch(error){console.error(error);}
+  };
+  recognition.onresult=event=>{
+    let transcript="";
+    for(let index=0;index<event.results.length;index++)transcript+=event.results[index][0].transcript;
+    const input=$("#quickTaskText");
+    input.value=[baseText,transcript.trim()].filter(Boolean).join(" ");
+    input.dir=isHebrew(input.value)?"rtl":"ltr";
+  };
+  recognition.onerror=event=>{console.error(event.error);toast(event.error==="not-allowed"?"יש לאשר גישה למיקרופון":"לא הצלחתי לזהות את הדיבור");};
+  recognition.onend=()=>{button.classList.remove("listening");button.textContent="🎙️";$("#quickTaskText").placeholder="הוספת משימה מהירה…";$("#quickTaskText").focus();};
+}
+
 async function login() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({prompt:"select_account"});
@@ -288,6 +314,7 @@ function openCategoryMenu() {
   menu.querySelector('[data-cat="delete"]').onclick=()=>openConfirm("deleteList",category);
 }
 
+initVoiceInput();
 $("#loginBtn").onclick=login;
 [$("#logoutBtn"),$("#menuLogoutBtn")].forEach(button=>button.onclick=()=>signOut(auth));
 $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
