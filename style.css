@@ -47,3 +47,16 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 #menuLogoutBtn{color:var(--danger)}
 
 .category-tab[dir="auto"],#categoryTitle[dir="auto"]{text-align:start;unicode-bidi:plaintext}
+
+/* v1.3 navigation and memory UI */
+.desktop-toolbar{justify-content:flex-start}
+.view-title{font-size:1.45rem;font-weight:800;margin:2px 2px 10px;color:var(--ink)}
+.category-tab{display:flex;align-items:center;gap:7px}
+.category-name{unicode-bidi:plaintext;text-align:start}
+.category-count{display:inline-grid;place-items:center;min-width:21px;height:21px;padding:0 6px;border-radius:99px;background:#e8edf5;color:#68768b;font-size:.72rem;font-weight:750}
+.category-tab.active .category-count{background:#dce9ff;color:var(--blue)}
+@media(max-width:760px){
+  .mobile-header{position:relative;justify-content:center}
+  .mobile-header .app-menu-btn{position:absolute;right:10px;top:10px}
+  .view-title{font-size:1.25rem;margin:0 2px 8px}
+}
