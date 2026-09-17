@@ -111,7 +111,7 @@ function selectArea(area) {
   state.selected=state.categories.find(c=>c.area===area)?.id || "";
   closeMenus(); render();
 }
-function closeMenus(){ $(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); }
+function closeMenus(){ $$(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); }
 
 function render() {
   document.documentElement.lang=state.language;
@@ -147,12 +147,12 @@ function renderTasks() {
       <div class="task-actions"><button class="icon-btn" data-actions="${task.id}" aria-label="Task options">•••</button></div>
     </article>`).join(""):`<div class="empty"><b>${t("empty")}</b><span>${t("emptyHint")}</span></div>`;
   $$("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
-  $("[data-actions]").forEach(el=>el.onclick=event=>{event.stopPropagation();openTaskMenu(el,state.tasks.find(x=>x.id===el.dataset.actions));});
+  $$("[data-actions]").forEach(el=>el.onclick=event=>{event.stopPropagation();openTaskMenu(el,state.tasks.find(x=>x.id===el.dataset.actions));});
   if(state.view==="tasks") initTaskDragging();
 }
 
 function initTaskDragging(){
-  $("[data-drag]").forEach(handle=>handle.onpointerdown=event=>{
+  $$("[data-drag]").forEach(handle=>handle.onpointerdown=event=>{
     event.preventDefault(); closeMenus();
     const card=handle.closest(".task-card"); state.dragging=true; card.classList.add("dragging");
     handle.setPointerCapture(event.pointerId);
@@ -166,7 +166,7 @@ function initTaskDragging(){
     handle.onpointerup=async()=>{
       if(!state.dragging)return; state.dragging=false; card.classList.remove("dragging");
       handle.onpointermove=null; handle.onpointerup=null;
-      const ids=$("#taskList .task-card").map(el=>el.dataset.taskId);
+      const ids=$$("#taskList .task-card").map(el=>el.dataset.taskId);
       await safe(()=>Promise.all(ids.map((id,index)=>updateDoc(userDoc("tasks",id),{order:(index+1)*1000,updatedAt:serverTimestamp()}))));
     };
     handle.onpointercancel=handle.onpointerup;
@@ -262,14 +262,14 @@ function openCategoryMenu() {
 
 $("#loginBtn").onclick=login;$("#logoutBtn").onclick=()=>signOut(auth);
 $("#menuLanguageBtn").onclick=()=>{state.language=state.language==="en"?"he":"en";localStorage.setItem(`tasks-language-${state.area}`,state.language);closeMenus();render();};
-$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
-$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
+$$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
+$$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
 $("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
-$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
-$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
+$$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
+$$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
 document.addEventListener("click",event=>{if(!event.target.closest(".task-actions")&&!event.target.closest("#categoryMenuBtn")&&!event.target.closest("#appMenu"))closeMenus();});
 if("serviceWorker" in navigator)navigator.serviceWorker.register("./service-worker.js");
 render();
