@@ -104,3 +104,7 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 /* v1.6.2 urgency is controlled from the task menu */
 .task-card.active-task{grid-template-columns:auto auto minmax(0,1fr) auto}
 @media(max-width:760px){.task-card.active-task{grid-template-columns:auto auto minmax(0,1fr) auto}}
+
+/* v1.6.3 visible touch reordering */
+.task-card.dragging{transition:none!important;position:relative;z-index:20;opacity:.88;box-shadow:0 14px 34px #10213f35}
+.task-card.drop-target{outline:2px dashed var(--blue);outline-offset:2px}
