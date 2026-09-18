@@ -138,3 +138,15 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
   .mobile-area-switch{justify-content:center}
   .category-tabs{max-height:86px}
 }
+
+/* v1.7.1 compact category overflow menu */
+.toggle-categories{display:none!important}
+.category-strip{position:relative}
+.category-tabs.has-overflow{padding-inline-end:42px}
+.category-more{position:absolute;inset-inline-end:2px;bottom:4px;width:36px;height:34px;border:1px solid #b8c8df;border-radius:10px;background:#fff;color:var(--blue);font-weight:900;cursor:pointer;box-shadow:0 3px 10px #10213f18;z-index:4}
+.category-picker{position:absolute;inset-inline:0;top:calc(100% + 5px);z-index:40;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;max-height:260px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:14px;padding:9px;box-shadow:0 14px 38px #10213f2b}
+.category-picker button{min-width:0;display:flex;align-items:center;justify-content:space-between;gap:8px;border:1px solid #e0e6ef;border-radius:9px;background:#fff;padding:9px 10px;color:var(--ink);cursor:pointer;text-align:start}
+.category-picker button.active{background:#e8f0ff;border-color:#8cb2f6;color:var(--blue);font-weight:750}
+.category-picker button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.category-picker button b{display:grid;place-items:center;min-width:21px;height:21px;border-radius:99px;background:#e8edf5;color:#68768b;font-size:.72rem}
+@media(max-width:480px){.category-picker{grid-template-columns:1fr}}
