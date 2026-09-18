@@ -431,7 +431,7 @@ initVoiceInput();
 $("#loginBtn").onclick=login;
 [$("#logoutBtn"),$("#menuLogoutBtn")].forEach(button=>button.onclick=()=>signOut(auth));
 $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
-$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;state.categoriesExpanded=false;closeMenus();render();});
+$$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;state.categoriesExpanded=false;closeMenus();render();});
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
 $("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;$("#toggleCategoriesBtn").onclick=toggleCategories;
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
