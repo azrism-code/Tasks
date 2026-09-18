@@ -172,3 +172,9 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 [dir=rtl] .sidebar .area-nav button[data-area="private"].active{box-shadow:0 7px 18px #07112655,inset -4px 0 #C4B5FD}
 .history-check,.task-card.completed-task .history-check{background:#DCFCE7;color:var(--success)}
 .complete-btn:hover{background:var(--success);border-color:var(--success)}
+
+
+/* v1.8.0 My Tasks brand */
+.brand-logo{display:block;width:34px;height:34px;flex:0 0 auto;border-radius:9px}
+.login-card .brand-logo{width:76px;height:76px;margin:auto;border-radius:18px}
+.mobile-header .brand-logo{width:34px;height:34px}
