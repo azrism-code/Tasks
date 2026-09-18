@@ -168,7 +168,7 @@ function selectArea(area) {
   if(state.selected)localStorage.setItem(`tasks-selected-${area}`,state.selected);
   closeMenus(); render();
 }
-function closeMenus(){ $(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); $("#categoryPicker").classList.add("hidden"); }
+function closeMenus(){ $$(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); $("#categoryPicker").classList.add("hidden"); }
 
 function render() {
   document.documentElement.lang="he";
