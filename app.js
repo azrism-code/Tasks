@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
-  onSnapshot, getDocs, serverTimestamp, writeBatch
+  onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -18,10 +18,6 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const db = getFirestore(firebaseApp);
 
-const defaults = [
-  ["integration","Integration","work",10],["training","Training","work",20],["lab","LAB","work",30],
-  ["collateral","Collateral","work",40],["buy","To Buy","private",10],["fix","To Fix","private",20],["mom","Mom","private",30]
-];
 const text = {
   en: {
     tasks:"Tasks",history:"History",areas:"Areas",work:"Work",private:"Private",signout:"Sign out",addTask:"Add task",
@@ -41,7 +37,7 @@ const text = {
     newList:"רשימה חדשה",editList:"עריכת רשימה",listName:"שם הרשימה",taskPlaceholder:"מה צריך לעשות?",
     taskCount:"משימות",empty:"אין כאן משימות",emptyHint:"הוסף משימה ושמור על זה פשוט.",edit:"עריכה",delete:"מחיקה",
     restore:"שחזור",done:"הושלם",completed:"הושלם",completeTitle:"לסמן כהושלם?",
-    completeBody:"המשימה תעבור להיסטוריה ויתווסף לה תאריך השלמה.",
+    completeBody:"המשימה תסומן כהושלמה, יתווסף לה תאריך והיא תעבור לתחתית הרשימה.",
     deleteTitle:"למחוק את המשימה?",deleteBody:"לא ניתן לבטל פעולה זו.",restoreTitle:"לשחזר את המשימה?",
     restoreBody:"המשימה תחזור לרשימה הפעילה.",deleteListTitle:"למחוק את הרשימה?",
     deleteListBody:"אפשר למחוק רק רשימה ריקה.",listNotEmpty:"יש להעביר או למחוק קודם את המשימות שלה.",
@@ -51,11 +47,12 @@ const text = {
 
 const lastArea=["work","private"].includes(localStorage.getItem("tasks-last-area"))?localStorage.getItem("tasks-last-area"):"work";
 const savedCategory = area => localStorage.getItem(`tasks-selected-${area}`) || "";
-const state = { user:null, language:"he", area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false };
+const state = { user:null, language:"he", area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
 const isHebrew = value => /[\u0590-\u05FF]/.test(value);
+const isArchived = task => !!task.archivedAt || (!!task.completedAt && task.archivedAt===undefined);
 const userCollection = name => collection(db,"users",state.user.uid,name);
 const userDoc = (name,id) => doc(db,"users",state.user.uid,name,id);
 const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
@@ -74,7 +71,7 @@ let voiceSupported=true;
 function setVoiceButton(listening){
   const button=$("#voiceTaskBtn");
   button.classList.toggle("listening",listening);
-  button.innerHTML=listening?"⏹️ <span>עצור הקלטה</span>":"🎙️ <span>הקלט משימה</span>";
+  button.innerHTML=listening?"⏹️ <span>עצור הקלטה</span>":"🎙️ <span>הקלט</span>";
 }
 
 function initVoiceInput(){
@@ -141,12 +138,6 @@ async function login() {
   }
 }
 
-async function seedCategories() {
-  const snapshot = await getDocs(userCollection("categories"));
-  if (!snapshot.empty) return;
-  await Promise.all(defaults.map(([id,name,area,order]) => setDoc(userDoc("categories",id),{name,area,order,createdAt:serverTimestamp()})));
-}
-
 function startSync() {
   state.unsubs.forEach(unsub=>unsub()); state.unsubs=[];
   state.unsubs.push(onSnapshot(userCollection("categories"), snapshot => {
@@ -168,11 +159,11 @@ onAuthStateChanged(auth, async user => {
   if (!user) { state.unsubs.forEach(unsub=>unsub()); state.unsubs=[]; return; }
   $("#userName").textContent=user.email || user.displayName || "";
   startSync();
-  safe(seedCategories);
 });
 
 function selectArea(area) {
   state.area=area;
+  state.categoriesExpanded=false;
   localStorage.setItem("tasks-last-area",area);
   state.selected=state.categories.find(c=>c.id===savedCategory(area)&&c.area===area)?.id || state.categories.find(c=>c.area===area)?.id || "";
   if(state.selected)localStorage.setItem(`tasks-selected-${area}`,state.selected);
@@ -186,8 +177,8 @@ function render() {
   $$("[data-i18n]").forEach(el=>el.textContent=t(el.dataset.i18n));
   $$("[data-view]").forEach(el=>el.classList.toggle("active",el.dataset.view===state.view));
   $$("[data-area]").forEach(el=>el.classList.toggle("active",el.dataset.area===state.area));
-  $("#workCount").textContent=state.tasks.filter(x=>x.area==="work"&&!x.completedAt).length;
-  $("#privateCount").textContent=state.tasks.filter(x=>x.area==="private"&&!x.completedAt).length;
+  $("#workCount").textContent=state.tasks.filter(x=>x.area==="work"&&!isArchived(x)).length;
+  $("#privateCount").textContent=state.tasks.filter(x=>x.area==="private"&&!isArchived(x)).length;
   $("#addTaskTop").classList.toggle("hidden",state.view==="history");
   $("#addTaskFab").classList.toggle("hidden",state.view==="history");
   $("#viewTitle").classList.toggle("hidden",state.view!=="history");
@@ -197,27 +188,85 @@ function render() {
 
 function renderCategories() {
   const categories=state.categories.filter(c=>c.area===state.area);
-  $("#categoryTabs").innerHTML=categories.map(c=>{const count=state.tasks.filter(task=>task.categoryId===c.id&&(state.view==="history"?!!task.completedAt:!task.completedAt)).length;return `<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}"><span class="category-name" dir="auto">${escapeHtml(c.name)}</span><span class="category-count">${count}</span></button>`;}).join("")+`<button id="addCategory" class="category-add" aria-label="Add list">＋</button>`;
-  $$("[data-category]").forEach(el=>el.onclick=()=>{state.selected=el.dataset.category;localStorage.setItem(`tasks-selected-${state.area}`,state.selected);closeMenus();render();});
+  $("#categoryTabs").classList.toggle("expanded",state.categoriesExpanded);
+  $("#categoryTabs").innerHTML=categories.map(c=>{
+    const count=state.tasks.filter(task=>task.categoryId===c.id&&(state.view==="history"?isArchived(task):!isArchived(task))).length;
+    return `<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}"><span class="category-drag" aria-label="שינוי סדר">⠿</span><span class="category-name" dir="auto">${escapeHtml(c.name)}</span><span class="category-count">${count}</span></button>`;
+  }).join("")+`<button id="addCategory" class="category-add" aria-label="הוספת תת קטגוריה">＋</button>`;
+  $$("[data-category]").forEach(el=>el.onclick=()=>{if(state.suppressCategoryClick)return;state.selected=el.dataset.category;localStorage.setItem(`tasks-selected-${state.area}`,state.selected);closeMenus();render();});
   $("#addCategory").onclick=()=>openCategory();
+  initCategoryDragging();
+  requestAnimationFrame(updateCategoryOverflow);
+}
+
+function updateCategoryOverflow(){
+  const tabs=$("#categoryTabs"),button=$("#toggleCategoriesBtn");
+  if(state.categoriesExpanded){button.classList.remove("hidden");button.textContent="הצג פחות";return;}
+  const overflowing=tabs.scrollHeight>tabs.clientHeight+2;
+  button.classList.toggle("hidden",!overflowing);
+  button.textContent="הצג הכל";
+}
+
+function toggleCategories(){
+  state.categoriesExpanded=!state.categoriesExpanded;
+  $("#categoryTabs").classList.toggle("expanded",state.categoriesExpanded);
+  updateCategoryOverflow();
+}
+
+function initCategoryDragging(){
+  $$(".category-drag").forEach(handle=>handle.onpointerdown=event=>{
+    event.preventDefault();event.stopPropagation();
+    const tab=handle.closest(".category-tab"),tabs=$("#categoryTabs"),rect=tab.getBoundingClientRect();
+    const clone=tab.cloneNode(true);
+    clone.classList.add("category-drag-clone");
+    Object.assign(clone.style,{position:"fixed",left:`${rect.left}px`,top:`${rect.top}px`,width:`${rect.width}px`,height:`${rect.height}px`,pointerEvents:"none",zIndex:"100"});
+    document.body.append(clone);tab.classList.add("category-drag-source");
+    const offsetX=event.clientX-rect.left,offsetY=event.clientY-rect.top,startX=event.clientX,startY=event.clientY;
+    let moved=false;handle.setPointerCapture(event.pointerId);
+    handle.onpointermove=moveEvent=>{
+      moveEvent.preventDefault();
+      if(Math.hypot(moveEvent.clientX-startX,moveEvent.clientY-startY)>5){moved=true;state.suppressCategoryClick=true;}
+      clone.style.left=`${moveEvent.clientX-offsetX}px`;clone.style.top=`${moveEvent.clientY-offsetY}px`;
+      const target=document.elementFromPoint(moveEvent.clientX,moveEvent.clientY)?.closest(".category-tab");
+      if(!moved||!target||target===tab||target.parentElement!==tabs)return;
+      const box=target.getBoundingClientRect(),sameRow=Math.abs(moveEvent.clientY-(box.top+box.height/2))<box.height/2;
+      const before=sameRow?moveEvent.clientX>box.left+box.width/2:moveEvent.clientY<box.top+box.height/2;
+      tabs.insertBefore(tab,before?target:target.nextSibling);
+    };
+    const finish=async()=>{
+      clone.remove();tab.classList.remove("category-drag-source");
+      handle.onpointermove=null;handle.onpointerup=null;handle.onpointercancel=null;
+      if(moved){
+        const ids=$$("#categoryTabs [data-category]").map(item=>item.dataset.category);
+        await safe(async()=>{const batch=writeBatch(db);ids.forEach((id,index)=>batch.update(userDoc("categories",id),{order:(index+1)*1000}));await batch.commit();});
+      }
+      setTimeout(()=>{state.suppressCategoryClick=false;},120);
+    };
+    handle.onpointerup=finish;handle.onpointercancel=finish;
+  });
 }
 
 function renderTasks() {
   const category=state.categories.find(c=>c.id===state.selected);
   $("#categoryTitle").textContent=category?.name || "";
   $("#categoryTitle").dir="auto";
-  const items=state.tasks.filter(task=>task.area===state.area&&task.categoryId===state.selected&&(state.view==="history"?!!task.completedAt:!task.completedAt)).sort((a,b)=>state.view==="history"?(b.completedAt?.seconds||0)-(a.completedAt?.seconds||0):(a.order??-(a.createdAt?.seconds||0))-(b.order??-(b.createdAt?.seconds||0)));
+  const items=state.tasks.filter(task=>task.area===state.area&&task.categoryId===state.selected&&(state.view==="history"?isArchived(task):!isArchived(task))).sort((a,b)=>{
+    if(state.view==="history")return (b.archivedAt?.seconds||b.completedAt?.seconds||0)-(a.archivedAt?.seconds||a.completedAt?.seconds||0);
+    if(!!a.completedAt!==!!b.completedAt)return a.completedAt?1:-1;
+    if(a.completedAt&&b.completedAt)return (a.completedAt?.seconds||0)-(b.completedAt?.seconds||0);
+    return (a.order??-(a.createdAt?.seconds||0))-(b.order??-(b.createdAt?.seconds||0));
+  });
   $("#taskCount").textContent=`${items.length} ${t("taskCount")}`;
   $("#taskList").innerHTML=items.length?items.map(task=>`
-    <article class="task-card ${state.view==="tasks"?"active-task":"history-task"} ${task.urgent?"urgent":""}" data-task-id="${task.id}">
+    <article class="task-card ${state.view==="tasks"?"active-task":"history-task"} ${task.completedAt?"completed-task":""} ${task.urgent?"urgent":""}" data-task-id="${task.id}">
       ${state.view==="tasks"?`<button class="drag-handle" data-drag="${task.id}" aria-label="שינוי סדר">⠿</button>`:""}
-      ${state.view==="tasks"?`<button class="complete-btn" data-complete="${task.id}" aria-label="${t("done")}">✓</button>`:`<span class="history-check">✓</span>`}
+      ${state.view==="tasks"&&!task.completedAt?`<button class="complete-btn" data-complete="${task.id}" aria-label="${t("done")}">✓</button>`:`<span class="history-check">✓</span>`}
       <div class="task-copy"><p dir="${isHebrew(task.text)?"rtl":"ltr"}">${escapeHtml(task.text)}</p>${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
-      <div class="task-actions"><button class="icon-btn" data-actions="${task.id}" aria-label="Task options">•••</button></div>
+      <div class="task-actions"><button class="icon-btn" data-actions="${task.id}" aria-label="אפשרויות משימה">•••</button></div>
     </article>`).join(""):`<div class="empty"><b>${t("empty")}</b><span>${t("emptyHint")}</span></div>`;
   $$("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
   $$("[data-actions]").forEach(el=>el.onclick=event=>{event.stopPropagation();openTaskMenu(el,state.tasks.find(x=>x.id===el.dataset.actions));});
-  if(state.view==="tasks") initTaskDragging();
+  if(state.view==="tasks")initTaskDragging();
 }
 
 function initTaskDragging(){
@@ -271,14 +320,20 @@ function toggleUrgent(task){if(task)safe(()=>updateDoc(userDoc("tasks",task.id),
 
 function openTaskMenu(anchor,task) {
   closeMenus();
-  const menu=document.createElement("div"); menu.className="action-menu";
-  menu.innerHTML=state.view==="tasks"
-    ?`<button data-act="urgent">${task.urgent?"☆ בטל דחיפות":"★ סמן כדחוף"}</button><button data-act="edit">✎ ${t("edit")}</button><button data-act="move">↪ ${t("move")}</button><button data-act="delete" class="delete">♲ ${t("delete")}</button>`
-    :`<button data-act="restore">↶ ${t("restore")}</button><button data-act="delete" class="delete">♲ ${t("delete")}</button>`;
+  const menu=document.createElement("div");menu.className="action-menu";
+  if(state.view==="history"){
+    menu.innerHTML=`<button data-act="restore">↶ שחזור למשימות</button><button data-act="delete" class="delete">♲ ${t("delete")}</button>`;
+  }else if(task.completedAt){
+    menu.innerHTML=`<button data-act="archive">↶ העבר להיסטוריה</button><button data-act="uncomplete">○ בטל סימון הושלם</button><button data-act="urgent">${task.urgent?"בטל דחיפות":"סמן כדחוף"}</button><button data-act="edit">✎ ${t("edit")}</button><button data-act="delete" class="delete">♲ ${t("delete")}</button>`;
+  }else{
+    menu.innerHTML=`<button data-act="urgent">${task.urgent?"בטל דחיפות":"סמן כדחוף"}</button><button data-act="edit">✎ ${t("edit")}</button><button data-act="move">↪ ${t("move")}</button><button data-act="delete" class="delete">♲ ${t("delete")}</button>`;
+  }
   anchor.parentElement.append(menu);
   menu.querySelector('[data-act="urgent"]')?.addEventListener("click",()=>{closeMenus();toggleUrgent(task);});
   menu.querySelector('[data-act="edit"]')?.addEventListener("click",()=>openTask(task));
   menu.querySelector('[data-act="move"]')?.addEventListener("click",()=>openMove(task));
+  menu.querySelector('[data-act="archive"]')?.addEventListener("click",()=>safe(async()=>{const categoryId=await historyCategoryId(task);await updateDoc(userDoc("tasks",task.id),{categoryId,archivedAt:serverTimestamp()});closeMenus();}));
+  menu.querySelector('[data-act="uncomplete"]')?.addEventListener("click",()=>safe(()=>updateDoc(userDoc("tasks",task.id),{completedAt:null,archivedAt:null})));
   menu.querySelector('[data-act="restore"]')?.addEventListener("click",()=>openConfirm("restore",task));
   menu.querySelector('[data-act="delete"]').onclick=()=>openConfirm("delete",task);
 }
@@ -295,7 +350,7 @@ function openTask(task=null) {
 }
 async function createTask(value){
   const maxOrder=Math.max(0,...state.tasks.filter(x=>x.categoryId===state.selected&&!x.completedAt).map(x=>x.order||0));
-  await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,createdAt:serverTimestamp(),completedAt:null});
+  await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,createdAt:serverTimestamp(),completedAt:null,archivedAt:null});
 }
 
 async function saveTask(event) {
@@ -353,8 +408,8 @@ function openConfirm(type,item) {
 async function confirmAction(event) {
   event.preventDefault();const {type,item}=state.confirmAction;
   await safe(async()=>{
-    if(type==="complete"){const categoryId=await historyCategoryId(item);await updateDoc(userDoc("tasks",item.id),{categoryId,completedAt:serverTimestamp()});}
-    if(type==="restore")await updateDoc(userDoc("tasks",item.id),{completedAt:null});
+    if(type==="complete")await updateDoc(userDoc("tasks",item.id),{completedAt:serverTimestamp(),archivedAt:null});
+    if(type==="restore")await updateDoc(userDoc("tasks",item.id),{completedAt:null,archivedAt:null});
     if(type==="delete")await deleteDoc(userDoc("tasks",item.id));
     if(type==="deleteList"){
       if(state.tasks.some(task=>task.categoryId===item.id)){toast(t("listNotEmpty"));$("#confirmDialog").close();return;}
@@ -376,9 +431,9 @@ initVoiceInput();
 $("#loginBtn").onclick=login;
 [$("#logoutBtn"),$("#menuLogoutBtn")].forEach(button=>button.onclick=()=>signOut(auth));
 $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
-$$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
+$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;state.categoriesExpanded=false;closeMenus();render();});
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
-$("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;
+$("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;$("#toggleCategoriesBtn").onclick=toggleCategories;
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#categoryName").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
