@@ -163,13 +163,12 @@ onAuthStateChanged(auth, async user => {
 
 function selectArea(area) {
   state.area=area;
-  state.categoriesExpanded=false;
   localStorage.setItem("tasks-last-area",area);
   state.selected=state.categories.find(c=>c.id===savedCategory(area)&&c.area===area)?.id || state.categories.find(c=>c.area===area)?.id || "";
   if(state.selected)localStorage.setItem(`tasks-selected-${area}`,state.selected);
   closeMenus(); render();
 }
-function closeMenus(){ $$(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); }
+function closeMenus(){ $(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); $("#categoryPicker").classList.add("hidden"); }
 
 function render() {
   document.documentElement.lang="he";
@@ -186,31 +185,36 @@ function render() {
   renderCategories(); renderTasks();
 }
 
+function selectCategory(id){
+  state.selected=id;
+  localStorage.setItem(`tasks-selected-${state.area}`,id);
+  closeMenus();render();
+}
+
 function renderCategories() {
   const categories=state.categories.filter(c=>c.area===state.area);
-  $("#categoryTabs").classList.toggle("expanded",state.categoriesExpanded);
-  $("#categoryTabs").innerHTML=categories.map(c=>{
-    const count=state.tasks.filter(task=>task.categoryId===c.id&&(state.view==="history"?isArchived(task):!isArchived(task))).length;
-    return `<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}"><span class="category-drag" aria-label="שינוי סדר">⠿</span><span class="category-name" dir="auto">${escapeHtml(c.name)}</span><span class="category-count">${count}</span></button>`;
-  }).join("")+`<button id="addCategory" class="category-add" aria-label="הוספת תת קטגוריה">＋</button>`;
-  $$("[data-category]").forEach(el=>el.onclick=()=>{if(state.suppressCategoryClick)return;state.selected=el.dataset.category;localStorage.setItem(`tasks-selected-${state.area}`,state.selected);closeMenus();render();});
+  const countFor=category=>state.tasks.filter(task=>task.categoryId===category.id&&(state.view==="history"?isArchived(task):!isArchived(task))).length;
+  $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}"><span class="category-drag" aria-label="שינוי סדר">⠿</span><span class="category-name" dir="auto">${escapeHtml(c.name)}</span><span class="category-count">${countFor(c)}</span></button>`).join("")+`<button id="addCategory" class="category-add" aria-label="הוספת תת קטגוריה">＋</button>`;
+  $("#categoryPicker").innerHTML=categories.map(c=>`<button class="${c.id===state.selected?"active":""}" data-pick-category="${c.id}"><span dir="auto">${escapeHtml(c.name)}</span><b>${countFor(c)}</b></button>`).join("");
+  $$("[data-category]").forEach(el=>el.onclick=()=>{if(!state.suppressCategoryClick)selectCategory(el.dataset.category);});
+  $$("[data-pick-category]").forEach(el=>el.onclick=()=>selectCategory(el.dataset.pickCategory));
   $("#addCategory").onclick=()=>openCategory();
   initCategoryDragging();
   requestAnimationFrame(updateCategoryOverflow);
 }
 
 function updateCategoryOverflow(){
-  const tabs=$("#categoryTabs"),button=$("#toggleCategoriesBtn");
-  if(state.categoriesExpanded){button.classList.remove("hidden");button.textContent="הצג פחות";return;}
+  const tabs=$("#categoryTabs"),button=$("#moreCategoriesBtn"),active=tabs.querySelector(".category-tab.active");
+  tabs.scrollTop=0;
   const overflowing=tabs.scrollHeight>tabs.clientHeight+2;
+  tabs.classList.toggle("has-overflow",overflowing);
   button.classList.toggle("hidden",!overflowing);
-  button.textContent="הצג הכל";
+  if(overflowing&&active&&active.offsetTop+active.offsetHeight>tabs.clientHeight)tabs.scrollTop=Math.max(0,active.offsetTop-(tabs.clientHeight-active.offsetHeight));
 }
 
-function toggleCategories(){
-  state.categoriesExpanded=!state.categoriesExpanded;
-  $("#categoryTabs").classList.toggle("expanded",state.categoriesExpanded);
-  updateCategoryOverflow();
+function toggleCategoryPicker(event){
+  event.stopPropagation();
+  $("#categoryPicker").classList.toggle("hidden");
 }
 
 function initCategoryDragging(){
@@ -431,9 +435,9 @@ initVoiceInput();
 $("#loginBtn").onclick=login;
 [$("#logoutBtn"),$("#menuLogoutBtn")].forEach(button=>button.onclick=()=>signOut(auth));
 $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
-$$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;state.categoriesExpanded=false;closeMenus();render();});
+$$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
-$("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;$("#toggleCategoriesBtn").onclick=toggleCategories;
+$("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;$("#moreCategoriesBtn").onclick=toggleCategoryPicker;
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#categoryName").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
