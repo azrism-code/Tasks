@@ -7,8 +7,8 @@
   <meta name="description" content="A simple bilingual task manager">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=1.6.6-3792d5c0">
-  <title>Azri Tasks v1.6.6</title>
+  <link rel="stylesheet" href="./style.css?v=1.7.0-49af23ee">
+  <title>Azri Tasks v1.7.0</title>
 </head>
 <body>
   <div id="login" class="login-screen">
@@ -22,7 +22,7 @@
 
   <main id="app" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="brand"><span class="brand-mark">✓</span><span>משימות</span><small class="version">v1.6.6</small></div>
+      <div class="brand"><span class="brand-mark">✓</span><span>משימות</span><small class="version">v1.7.0</small></div>
       <p class="side-label" data-i18n="areas">Areas</p>
       <nav class="area-nav">
         <button data-area="work" class="active">▣ <span data-i18n="work">Work</span><b id="workCount">0</b></button>
@@ -34,7 +34,7 @@
 
     <section class="workspace">
       <header class="mobile-header">
-        <div class="brand"><span class="brand-mark">✓</span><span>משימות</span><small class="version">v1.6.6</small></div>
+        <div class="brand"><span class="brand-mark">✓</span><span>משימות</span><small class="version">v1.7.0</small></div>
         <button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button>
       </header>
       <div class="content">
@@ -45,6 +45,7 @@
           <button data-area="private" data-i18n="private">Private</button>
         </div>
         <div id="categoryTabs" class="category-tabs"></div>
+        <button id="toggleCategoriesBtn" class="toggle-categories hidden" type="button">הצג הכל</button>
         <div class="list-heading">
           <div><h2 id="categoryTitle"></h2><span id="taskCount"></span></div>
           <div class="list-actions"><button id="addTaskTop" class="primary-btn">＋ <span data-i18n="addTask">Add task</span></button><button id="categoryMenuBtn" class="icon-btn" aria-label="List options">•••</button></div>
@@ -65,7 +66,7 @@
     <form method="dialog" id="taskForm">
       <header><div><h2 id="taskDialogTitle">New task</h2><p id="taskDialogCategory"></p></div><button type="button" data-close-dialog="taskDialog" class="close-btn">×</button></header>
       <textarea id="taskText" rows="5" required></textarea>
-      <div class="voice-entry"><button id="voiceTaskBtn" type="button" class="voice-dialog-btn">🎙️ <span>הקלט משימה</span></button><small id="voiceStatus" aria-live="polite"></small></div>
+      <div class="voice-entry"><button id="voiceTaskBtn" type="button" class="voice-dialog-btn">🎙️ <span>הקלט</span></button><small id="voiceStatus" aria-live="polite"></small></div>
       <footer><button type="button" data-close-dialog="taskDialog" class="secondary-btn" data-i18n="cancel">Cancel</button><button id="saveTaskBtn" type="submit" class="primary-btn" data-i18n="save">Save</button></footer>
     </form>
   </dialog>
@@ -95,6 +96,6 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="./app.js?v=1.6.6-0c95a5a4"></script>
+  <script type="module" src="./app.js?v=1.7.0-fa752042"></script>
 </body>
 </html>
