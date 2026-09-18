@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="20 28 150 135" role="img" aria-label="My Tasks">
+  <defs><linearGradient id="mark" x1="30" y1="35" x2="165" y2="155" gradientUnits="userSpaceOnUse"><stop stop-color="#2563EB"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs>
+  <path d="M38 72V52l40 24 42-24" fill="none" stroke="url(#mark)" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M112 52h46M140 52v88" fill="none" stroke="url(#mark)" stroke-width="15" stroke-linecap="round"/>
+  <circle cx="47" cy="101" r="7" fill="url(#mark)"/><path d="M69 101h43" stroke="url(#mark)" stroke-width="11" stroke-linecap="round"/>
+  <circle cx="47" cy="124" r="7" fill="url(#mark)"/><path d="M69 124h43" stroke="url(#mark)" stroke-width="11" stroke-linecap="round"/>
+  <circle cx="47" cy="147" r="7" fill="url(#mark)"/><path d="M69 147h43" stroke="url(#mark)" stroke-width="11" stroke-linecap="round"/>
+</svg>
