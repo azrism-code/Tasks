@@ -150,3 +150,17 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 .category-picker button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .category-picker button b{display:grid;place-items:center;min-width:21px;height:21px;border-radius:99px;background:#e8edf5;color:#68768b;font-size:.72rem}
 @media(max-width:480px){.category-picker{grid-template-columns:1fr}}
+
+/* v1.7.2 tighter category rows and subtle overflow control */
+.category-tabs{max-height:74px;gap:4px}
+.category-tab{min-height:34px;padding:5px 8px;gap:5px;font-size:.9rem}
+.category-count{min-width:19px;height:19px;padding:0 5px;font-size:.68rem}
+.category-drag{font-size:.9rem;padding:1px}
+.category-add{width:32px;height:32px}
+.category-tabs.has-overflow{padding-inline-end:32px}
+.category-more{inset-inline-end:1px;bottom:3px;width:28px;height:28px;border:0;border-radius:8px;background:transparent;color:#8a97aa;font-size:.9rem;box-shadow:none}
+.category-more:hover{background:#edf2f8;color:var(--blue)}
+@media(max-width:760px){
+  .category-tabs{max-height:74px;gap:4px}
+  .category-tab{padding:5px 8px}
+}
