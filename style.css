@@ -178,3 +178,8 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 .brand-logo{display:block;width:34px;height:34px;flex:0 0 auto;border-radius:9px}
 .login-card .brand-logo{width:76px;height:76px;margin:auto;border-radius:18px}
 .mobile-header .brand-logo{width:34px;height:34px}
+
+
+/* v1.8.1 frameless header mark */
+.brand-logo{object-fit:contain;border-radius:0}
+.login-card .brand-logo{width:86px;height:76px;border-radius:0}
