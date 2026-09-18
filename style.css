@@ -119,3 +119,22 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
   .category-tabs{margin:10px 0 0;padding:0;gap:6px}
   .category-tab{padding:8px 10px}
 }
+
+/* v1.7.0 compact categories, blue urgency and completed queue */
+.mobile-area-switch{justify-content:center}
+.category-tabs{max-height:88px;overflow:hidden}
+.category-tabs.expanded{max-height:none}
+.toggle-categories{display:block;margin:7px auto 0;border:0;background:transparent;color:var(--blue);font-weight:750;cursor:pointer;padding:5px 12px}
+.category-drag{color:#9ba7b8;font-size:1rem;cursor:grab;touch-action:none;padding:3px}
+.category-drag:active{cursor:grabbing}
+.category-tab.category-drag-source{opacity:.25}
+.category-drag-clone{background:#e8f0ff!important;border-color:#6f9ff3!important;box-shadow:0 12px 28px #10213f30}
+.task-card.urgent{background:#eef4ff;border-color:#7aa5f3;box-shadow:inset 4px 0 var(--blue),0 3px 12px #1f35520a}
+[dir=rtl] .task-card.urgent{box-shadow:inset -4px 0 var(--blue),0 3px 12px #1f35520a}
+.task-card.completed-task{background:#f3f6f8;color:#6f7b8b}
+.task-card.completed-task .task-copy p{text-decoration:line-through;text-decoration-thickness:1.5px}
+.task-card.completed-task .history-check{background:#dceee5;color:#238658}
+@media(max-width:760px){
+  .mobile-area-switch{justify-content:center}
+  .category-tabs{max-height:86px}
+}
