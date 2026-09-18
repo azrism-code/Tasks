@@ -1,10 +1,17 @@
 {
-  "name": "Azri Tasks",
-  "short_name": "Tasks",
+  "name": "My Tasks",
+  "short_name": "My Tasks",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f6f8fb",
-  "theme_color": "#10213f",
-  "icons": [{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+  "background_color": "#F8FAFC",
+  "theme_color": "#1E3A5F",
+  "icons": [
+    {
+      "src": "./icon.svg?v=1.8.0",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
