@@ -182,8 +182,8 @@ function render() {
   const calendarView=state.view==="calendar";
   $("#tasksPanel").classList.toggle("hidden",calendarView);
   $("#calendarView").classList.toggle("hidden",!calendarView);
-  $("#addTaskTop").classList.toggle("hidden",state.view==="history");
-  $("#addTaskFab").classList.toggle("hidden",state.view==="history");
+  $("#addTaskTop").classList.toggle("hidden",state.view!=="tasks");
+  $("#addTaskFab").classList.toggle("hidden",state.view!=="tasks");
   $("#viewTitle").classList.toggle("hidden",state.view==="tasks");
   $("#viewTitle").textContent=calendarView?"יומן":"היסטוריה";
   if(calendarView)renderCalendar();else{renderCategories();renderTasks();}
@@ -304,7 +304,7 @@ function initCategoryDragging(){
 }
 
 function renderTasks() {
-  const category=state.categories.find(c=>c.id===state.selected);
+  const category=state.categories.find(c=>c.id===(task?.categoryId||state.selected));
   $("#categoryTitle").textContent=category?.name || "";
   $("#categoryTitle").dir="auto";
   const items=state.tasks.filter(task=>task.area===state.area&&task.categoryId===state.selected&&(state.view==="history"?isArchived(task):!isArchived(task))).sort((a,b)=>{
