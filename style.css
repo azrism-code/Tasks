@@ -183,3 +183,29 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 /* v1.8.1 frameless header mark */
 .brand-logo{object-fit:contain;border-radius:0}
 .login-card .brand-logo{width:86px;height:76px;border-radius:0}
+
+
+/* v1.9.0 lightweight calendar */
+.calendar-view{margin-top:8px}
+.calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.calendar-toolbar h2{margin:0;font-size:1.15rem;text-transform:capitalize}
+.calendar-toolbar button{width:38px;height:38px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);cursor:pointer}
+.calendar-weekdays,.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.calendar-weekdays span{text-align:center;color:var(--muted);font-size:.72rem;padding:5px 0}
+.calendar-day{position:relative;min-height:58px;border:1px solid var(--line);border-radius:11px;background:#fff;color:var(--ink);cursor:pointer}
+.calendar-day:hover{border-color:#93B4F8;background:#F3F7FF}
+.calendar-day.selected{border:2px solid var(--blue);background:#EEF4FF}
+.calendar-day.today span{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff}
+.calendar-day b{position:absolute;inset-inline-end:5px;bottom:5px;display:grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:99px;background:var(--private);color:#fff;font-size:.68rem}
+.empty-day{border:0;background:transparent}
+.calendar-agenda{margin-top:16px}
+.calendar-agenda-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}
+.calendar-agenda-head h3{margin:0;font-size:1rem}
+.calendar-agenda-head button{min-height:36px;padding:0 12px}
+.calendar-task{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:11px;background:#fff;padding:11px 12px;margin-bottom:7px;color:var(--ink);text-align:start;cursor:pointer}
+.calendar-task small{color:var(--muted);white-space:nowrap}
+.calendar-task.completed-task span{text-decoration:line-through}
+.calendar-empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
+.task-schedule{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.task-schedule label{display:grid;gap:5px;color:var(--muted);font-size:.78rem}
+@media(max-width:480px){.calendar-day{min-height:48px}.calendar-weekdays,.calendar-grid{gap:3px}.task-schedule{grid-template-columns:1fr}.calendar-task{align-items:flex-start;flex-direction:column;gap:4px}}
