@@ -47,7 +47,8 @@ const text = {
 
 const lastArea=["work","private"].includes(localStorage.getItem("tasks-last-area"))?localStorage.getItem("tasks-last-area"):"work";
 const savedCategory = area => localStorage.getItem(`tasks-selected-${area}`) || "";
-const state = { user:null, language:"he", area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false };
+const todayKey=new Date().toISOString().slice(0,10);
+const state = { user:null, language:"he", area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -178,17 +179,69 @@ function render() {
   $$("[data-area]").forEach(el=>el.classList.toggle("active",el.dataset.area===state.area));
   $("#workCount").textContent=state.tasks.filter(x=>x.area==="work"&&!isArchived(x)).length;
   $("#privateCount").textContent=state.tasks.filter(x=>x.area==="private"&&!isArchived(x)).length;
+  const calendarView=state.view==="calendar";
+  $("#tasksPanel").classList.toggle("hidden",calendarView);
+  $("#calendarView").classList.toggle("hidden",!calendarView);
   $("#addTaskTop").classList.toggle("hidden",state.view==="history");
   $("#addTaskFab").classList.toggle("hidden",state.view==="history");
-  $("#viewTitle").classList.toggle("hidden",state.view!=="history");
-  $("#viewTitle").textContent="היסטוריה";
-  renderCategories(); renderTasks();
+  $("#viewTitle").classList.toggle("hidden",state.view==="tasks");
+  $("#viewTitle").textContent=calendarView?"יומן":"היסטוריה";
+  if(calendarView)renderCalendar();else{renderCategories();renderTasks();}
 }
 
 function selectCategory(id){
   state.selected=id;
   localStorage.setItem(`tasks-selected-${state.area}`,id);
   closeMenus();render();
+}
+
+function dateKey(date){return [date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0")].join("-");}
+function formatDue(task){
+  if(!task.dueDate)return "";
+  const date=new Date(task.dueDate+"T12:00:00");
+  const label=new Intl.DateTimeFormat("he-IL",{day:"numeric",month:"short"}).format(date);
+  return "📅 "+label+(task.dueTime?" · "+task.dueTime:"");
+}
+function renderCalendar(){
+  const month=state.calendarMonth,year=month.getFullYear(),monthIndex=month.getMonth();
+  $("#calendarMonthTitle").textContent=new Intl.DateTimeFormat("he-IL",{month:"long",year:"numeric"}).format(month);
+  const firstDay=new Date(year,monthIndex,1).getDay(),days=new Date(year,monthIndex+1,0).getDate();
+  const cells=[];
+  for(let i=0;i<firstDay;i++)cells.push('<span class="calendar-day empty-day"></span>');
+  for(let day=1;day<=days;day++){
+    const key=dateKey(new Date(year,monthIndex,day));
+    const count=state.tasks.filter(task=>task.dueDate===key&&!isArchived(task)).length;
+    cells.push(`<button class="calendar-day ${key===state.selectedCalendarDate?"selected":""} ${key===todayKey?"today":""}" data-calendar-date="${key}"><span>${day}</span>${count?`<b>${count}</b>`:""}</button>`);
+  }
+  $("#calendarGrid").innerHTML=cells.join("");
+  $$("[data-calendar-date]").forEach(button=>button.onclick=()=>{state.selectedCalendarDate=button.dataset.calendarDate;renderCalendar();});
+  const selected=state.tasks.filter(task=>task.dueDate===state.selectedCalendarDate&&!isArchived(task)).sort((a,b)=>(a.dueTime||"99:99").localeCompare(b.dueTime||"99:99"));
+  $("#calendarSelectedTitle").textContent=new Intl.DateTimeFormat("he-IL",{weekday:"long",day:"numeric",month:"long"}).format(new Date(state.selectedCalendarDate+"T12:00:00"));
+  $("#calendarTaskList").innerHTML=selected.length?selected.map(task=>`<button class="calendar-task ${task.completedAt?"completed-task":""}" data-calendar-task="${task.id}"><span dir="auto">${escapeHtml(task.text)}</span><small>${task.dueTime||"כל היום"} · ${task.area==="private"?"פרטי":"עבודה"}</small></button>`).join(""):'<div class="calendar-empty">אין משימות ביום זה</div>';
+  $$("[data-calendar-task]").forEach(button=>button.onclick=()=>openTask(state.tasks.find(task=>task.id===button.dataset.calendarTask)));
+}
+async function openTaskForDate(){
+  state.area="private";localStorage.setItem("tasks-last-area","private");
+  let category=state.categories.find(item=>item.area==="private");
+  if(!category){
+    const id="general-private";
+    category={id,name:"כללי",area:"private",order:1000};
+    state.categories.push(category);
+    await safe(()=>setDoc(userDoc("categories",id),{name:"כללי",area:"private",order:1000,createdAt:serverTimestamp()},{merge:true}));
+  }
+  state.selected=category.id;localStorage.setItem("tasks-selected-private",category.id);
+  openTask(null,state.selectedCalendarDate);
+}
+function shiftCalendarMonth(amount){state.calendarMonth=new Date(state.calendarMonth.getFullYear(),state.calendarMonth.getMonth()+amount,1);renderCalendar();}
+function addToPersonalCalendar(task){
+  if(!task.dueDate){toast("יש להוסיף קודם תאריך למשימה");return;}
+  const compact=value=>value.replace(/[-:]/g,"");
+  const start=task.dueTime?compact(task.dueDate)+ "T"+compact(task.dueTime)+"00":compact(task.dueDate);
+  const endDate=new Date(task.dueDate+"T12:00:00");endDate.setDate(endDate.getDate()+1);
+  const end=task.dueTime?compact(task.dueDate)+"T"+String(Number(task.dueTime.slice(0,2))+1).padStart(2,"0")+task.dueTime.slice(3)+"00":dateKey(endDate).replace(/-/g,"");
+  const esc=value=>String(value).replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/,/g,"\\,").replace(/;/g,"\\;");
+  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//My Tasks//HE","BEGIN:VEVENT","UID:"+Date.now()+"@mytasks","DTSTAMP:"+new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,""),"DTSTART"+(task.dueTime?":":";VALUE=DATE:")+start,"DTEND"+(task.dueTime?":":";VALUE=DATE:")+end,"SUMMARY:"+esc(task.text),"END:VEVENT","END:VCALENDAR"].join("\r\n");
+  const link=document.createElement("a");link.href=URL.createObjectURL(new Blob([ics],{type:"text/calendar;charset=utf-8"}));link.download="my-task.ics";link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000);
 }
 
 function renderCategories() {
@@ -265,7 +318,7 @@ function renderTasks() {
     <article class="task-card ${state.view==="tasks"?"active-task":"history-task"} ${task.completedAt?"completed-task":""} ${task.urgent?"urgent":""}" data-task-id="${task.id}">
       ${state.view==="tasks"?`<button class="drag-handle" data-drag="${task.id}" aria-label="שינוי סדר">⠿</button>`:""}
       ${state.view==="tasks"&&!task.completedAt?`<button class="complete-btn" data-complete="${task.id}" aria-label="${t("done")}">✓</button>`:`<span class="history-check">✓</span>`}
-      <div class="task-copy"><p dir="${isHebrew(task.text)?"rtl":"ltr"}">${escapeHtml(task.text)}</p>${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
+      <div class="task-copy"><p dir="${isHebrew(task.text)?"rtl":"ltr"}">${escapeHtml(task.text)}</p>${task.dueDate?`<small>${formatDue(task)}</small>`:""}${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
       <div class="task-actions"><button class="icon-btn" data-actions="${task.id}" aria-label="אפשרויות משימה">•••</button></div>
     </article>`).join(""):`<div class="empty"><b>${t("empty")}</b><span>${t("emptyHint")}</span></div>`;
   $$("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
@@ -330,39 +383,42 @@ function openTaskMenu(anchor,task) {
   }else if(task.completedAt){
     menu.innerHTML=`<button data-act="archive">↶ העבר להיסטוריה</button><button data-act="uncomplete">○ בטל סימון הושלם</button><button data-act="urgent">${task.urgent?"בטל דחיפות":"סמן כדחוף"}</button><button data-act="edit">✎ ${t("edit")}</button><button data-act="delete" class="delete">♲ ${t("delete")}</button>`;
   }else{
-    menu.innerHTML=`<button data-act="urgent">${task.urgent?"בטל דחיפות":"סמן כדחוף"}</button><button data-act="edit">✎ ${t("edit")}</button><button data-act="move">↪ ${t("move")}</button><button data-act="delete" class="delete">♲ ${t("delete")}</button>`;
+    menu.innerHTML=`<button data-act="urgent">${task.urgent?"בטל דחיפות":"סמן כדחוף"}</button><button data-act="edit">✎ ${t("edit")}</button><button data-act="move">↪ ${t("move")}</button>${task.dueDate?'<button data-act="calendar">📅 הוסף ליומן האישי</button>':""}<button data-act="delete" class="delete">♲ ${t("delete")}</button>`;
   }
   anchor.parentElement.append(menu);
   menu.querySelector('[data-act="urgent"]')?.addEventListener("click",()=>{closeMenus();toggleUrgent(task);});
   menu.querySelector('[data-act="edit"]')?.addEventListener("click",()=>openTask(task));
   menu.querySelector('[data-act="move"]')?.addEventListener("click",()=>openMove(task));
+  menu.querySelector('[data-act="calendar"]')?.addEventListener("click",()=>{closeMenus();addToPersonalCalendar(task);});
   menu.querySelector('[data-act="archive"]')?.addEventListener("click",()=>safe(async()=>{const categoryId=await historyCategoryId(task);await updateDoc(userDoc("tasks",task.id),{categoryId,archivedAt:serverTimestamp()});closeMenus();}));
   menu.querySelector('[data-act="uncomplete"]')?.addEventListener("click",()=>safe(()=>updateDoc(userDoc("tasks",task.id),{completedAt:null,archivedAt:null})));
   menu.querySelector('[data-act="restore"]')?.addEventListener("click",()=>openConfirm("restore",task));
   menu.querySelector('[data-act="delete"]').onclick=()=>openConfirm("delete",task);
 }
 
-function openTask(task=null) {
+function openTask(task=null,presetDate="") {
   closeMenus(); state.editingTask=task;
   const category=state.categories.find(c=>c.id===state.selected);
   if(!category){toast(t("error"));return;}
   $("#taskDialogTitle").textContent=task?t("editTask"):t("newTask");
   $("#taskDialogCategory").textContent=category?.name||"";
   $("#taskText").value=task?.text||""; $("#taskText").placeholder=t("taskPlaceholder"); $("#taskText").dir=isHebrew($("#taskText").value)?"rtl":"ltr";
+  $("#taskDate").value=task?.dueDate||presetDate||"";$("#taskTime").value=task?.dueTime||"";
   resetVoiceInput();
   $("#taskDialog").showModal(); setTimeout(()=>$("#taskText").focus(),50);
 }
-async function createTask(value){
+async function createTask(value,dueDate,dueTime){
   const maxOrder=Math.max(0,...state.tasks.filter(x=>x.categoryId===state.selected&&!x.completedAt).map(x=>x.order||0));
-  await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,createdAt:serverTimestamp(),completedAt:null,archivedAt:null});
+  await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,createdAt:serverTimestamp(),completedAt:null,archivedAt:null});
 }
 
 async function saveTask(event) {
   event.preventDefault(); const value=$("#taskText").value.trim(); if(!value)return;
+  const dueDate=$("#taskDate").value,dueTime=$("#taskTime").value;
   const saveButton=$("#saveTaskBtn"); saveButton.disabled=true;
   await safe(async()=>{
-    if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,updatedAt:serverTimestamp()});
-    else await createTask(value);
+    if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,updatedAt:serverTimestamp()});
+    else await createTask(value,dueDate,dueTime);
     $("#taskDialog").close(); toast(t("saved"));
   });
   saveButton.disabled=false;
@@ -438,6 +494,7 @@ $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation
 $$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
 $("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;$("#moreCategoriesBtn").onclick=toggleCategoryPicker;
+$("#calendarPrev").onclick=()=>shiftCalendarMonth(-1);$("#calendarNext").onclick=()=>shiftCalendarMonth(1);$("#calendarAddTask").onclick=openTaskForDate;
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#categoryName").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
