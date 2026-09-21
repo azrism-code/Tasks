@@ -304,7 +304,7 @@ function initCategoryDragging(){
 }
 
 function renderTasks() {
-  const category=state.categories.find(c=>c.id===(task?.categoryId||state.selected));
+  const category=state.categories.find(c=>c.id===state.selected);
   $("#categoryTitle").textContent=category?.name || "";
   $("#categoryTitle").dir="auto";
   const items=state.tasks.filter(task=>task.area===state.area&&task.categoryId===state.selected&&(state.view==="history"?isArchived(task):!isArchived(task))).sort((a,b)=>{
@@ -398,7 +398,7 @@ function openTaskMenu(anchor,task) {
 
 function openTask(task=null,presetDate="") {
   closeMenus(); state.editingTask=task;
-  const category=state.categories.find(c=>c.id===state.selected);
+  const category=state.categories.find(c=>c.id===(task?.categoryId||state.selected));
   if(!category){toast(t("error"));return;}
   $("#taskDialogTitle").textContent=task?t("editTask"):t("newTask");
   $("#taskDialogCategory").textContent=category?.name||"";
