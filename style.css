@@ -208,4 +208,8 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 .calendar-empty{padding:22px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:12px}
 .task-schedule{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .task-schedule label{display:grid;gap:5px;color:var(--muted);font-size:.78rem}
+.reminder-editor{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.reminder-editor summary{cursor:pointer;font-weight:600}.reminder-switch{display:flex;align-items:center;gap:8px;margin-top:12px}
+.reminder-editor select,.reminder-editor input{min-width:0;width:100%;box-sizing:border-box}
+.reminder-switch input{width:auto}.reminder-note{display:block;margin-top:12px;color:var(--muted);line-height:1.4}
 @media(max-width:480px){.calendar-day{min-height:48px}.calendar-weekdays,.calendar-grid{gap:3px}.task-schedule{grid-template-columns:1fr}.calendar-task{align-items:flex-start;flex-direction:column;gap:4px}}
