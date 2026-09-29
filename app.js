@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.1.0";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.1.0";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.1.1";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.1.1";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -417,6 +417,8 @@ function openTask(task=null,presetDate="") {
   $("#taskDialogCategory").textContent=category?.name||"";
   $("#taskText").value=task?.text||""; $("#taskText").placeholder=t("taskPlaceholder"); $("#taskText").dir=isHebrew($("#taskText").value)?"rtl":"ltr";
   $("#taskDate").value=task?.dueDate||presetDate||"";$("#taskTime").value=task?.dueTime||"";
+  $("#scheduleEditor").open=false;
+  updateScheduleSummary();
   const reminder=task?.reminder;
   $("#reminderEditor").open=!!reminder?.enabled;
   $("#reminderEnabled").checked=!!reminder?.enabled;
@@ -441,6 +443,56 @@ function updateReminderFields(){
 function reminderInput(){return {enabled:$("#reminderEnabled").checked,date:$("#reminderDate").value,
   time:$("#reminderTime").value,repeat:$("#reminderRepeat").value,
   interval:$("#customInterval").value,unit:$("#customUnit").value,level:$("#reminderLevel").value};}
+function updateScheduleSummary() {
+  const date=$("#taskDate").value;
+  const time=$("#taskTime").value;
+  const summary=$("#scheduleSummary");
+  if(!summary)return;
+  if(!date){summary.textContent="📅 הוסף תאריך ושעה";return;}
+  const [year,month,day]=date.split("-");
+  summary.textContent=`📅 ${day}/${month}/${year}${time?` · ${time}`:""}`;
+}
+
+function escapeCalendarText(value="") {
+  return String(value).replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/,/g,"\\,").replace(/;/g,"\\;");
+}
+
+function calendarStamp(date) {
+  return [date.getFullYear(),String(date.getMonth()+1).padStart(2,"0"),String(date.getDate()).padStart(2,"0"),"T",String(date.getHours()).padStart(2,"0"),String(date.getMinutes()).padStart(2,"0"),String(date.getSeconds()).padStart(2,"0")].join("");
+}
+
+function downloadCalendarEvent(title,dueDate,dueTime) {
+  const compactDate=dueDate.replaceAll("-","");
+  let startLine,endLine;
+  if(dueTime){
+    const [year,month,day]=dueDate.split("-").map(Number);
+    const [hour,minute]=dueTime.split(":").map(Number);
+    const start=new Date(year,month-1,day,hour,minute,0);
+    const end=new Date(start.getTime()+60*60*1000);
+    startLine=`DTSTART:${calendarStamp(start)}`;
+    endLine=`DTEND:${calendarStamp(end)}`;
+  } else {
+    const [year,month,day]=dueDate.split("-").map(Number);
+    const next=new Date(year,month-1,day+1);
+    const nextDate=[next.getFullYear(),String(next.getMonth()+1).padStart(2,"0"),String(next.getDate()).padStart(2,"0")].join("");
+    startLine=`DTSTART;VALUE=DATE:${compactDate}`;
+    endLine=`DTEND;VALUE=DATE:${nextDate}`;
+  }
+  const uid=`my-tasks-${Date.now()}-${Math.random().toString(36).slice(2)}@azri-tasks`;
+  const ics=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//My Tasks//HE","CALSCALE:GREGORIAN","BEGIN:VEVENT",`UID:${uid}`,`DTSTAMP:${calendarStamp(new Date())}`,startLine,endLine,`SUMMARY:${escapeCalendarText(title)}`,"END:VEVENT","END:VCALENDAR"].join("\r\n");
+  const url=URL.createObjectURL(new Blob([ics],{type:"text/calendar;charset=utf-8"}));
+  const link=document.createElement("a");
+  link.href=url;link.download="my-task.ics";document.body.appendChild(link);link.click();link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function offerCalendarDownload(title,dueDate,dueTime) {
+  if(!dueDate)return;
+  setTimeout(()=>{
+    if(confirm("המשימה נשמרה. להוסיף אותה ליומן?"))downloadCalendarEvent(title,dueDate,dueTime);
+  },120);
+}
+
 async function saveTask(event) {
   event.preventDefault(); const value=$("#taskText").value.trim(); if(!value)return;
   const dueDate=$("#taskDate").value,dueTime=$("#taskTime").value;
@@ -455,6 +507,7 @@ async function saveTask(event) {
     if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,updatedAt:serverTimestamp()});
     else await createTask(value,dueDate,dueTime,reminder);
     $("#taskDialog").close(); toast(t("saved"));
+    offerCalendarDownload(value,dueDate,dueTime);
     if(reminder.enabled && (!("Notification" in window) || Notification.permission!=="granted"))toast("התזכורת נשמרה, אך התראות אינן מורשות במכשיר זה");
   } catch(error) {console.error(error);toast(error.message||t("error"));}
   saveButton.disabled=false;
@@ -566,6 +619,7 @@ $("#calendarPrev").onclick=()=>shiftCalendarMonth(-1);$("#calendarNext").onclick
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#categoryName").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
+$("#taskDate").oninput=updateScheduleSummary;$("#taskTime").oninput=updateScheduleSummary;
 $("#reminderEnabled").onchange=updateReminderFields;$("#reminderRepeat").onchange=updateReminderFields;
 $$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
 $$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
