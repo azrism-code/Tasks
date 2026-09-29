@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "my-tasks-reminders",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-26",
+  "compatibility_flags": ["nodejs_compat", "enable_nodejs_http_modules"],
+  "triggers": {"crons": ["* * * * *"]},
+  "vars": {"FIREBASE_PROJECT_ID": "azri-tasks"}
+}
