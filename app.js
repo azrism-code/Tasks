@@ -4,15 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-
-const firebaseConfig = {
-  apiKey: "AIzaSyA-w1TXwBN2pAC-FOL4ZAT-FxJO2okduVk",
-  authDomain: "azri-tasks.firebaseapp.com",
-  projectId: "azri-tasks",
-  storageBucket: "azri-tasks.firebasestorage.app",
-  messagingSenderId: "707546310998",
-  appId: "1:707546310998:web:174b4d8ce9fa0df5040ef7"
-};
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.1.0";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.1.0";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -48,7 +41,7 @@ const text = {
 const lastArea=["work","private"].includes(localStorage.getItem("tasks-last-area"))?localStorage.getItem("tasks-last-area"):"work";
 const savedCategory = area => localStorage.getItem(`tasks-selected-${area}`) || "";
 const todayKey=new Date().toISOString().slice(0,10);
-const state = { user:null, language:"he", area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
+const state = { user:null, language:"he", area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -56,6 +49,17 @@ const isHebrew = value => /[\u0590-\u05FF]/.test(value);
 const isArchived = task => !!task.archivedAt || (!!task.completedAt && task.archivedAt===undefined);
 const userCollection = name => collection(db,"users",state.user.uid,name);
 const userDoc = (name,id) => doc(db,"users",state.user.uid,name,id);
+const reminderService=createReminderService({db,taskRef:id=>userDoc("tasks",id),getTasks:()=>state.tasks,onError:console.error});
+async function registerPushSubscription() {
+  if(!webPushPublicKey || Notification.permission!=="granted" || !("PushManager" in window))return;
+  const registration=await navigator.serviceWorker.ready;
+  const bytes=Uint8Array.from(atob(webPushPublicKey.replace(/-/g,"+").replace(/_/g,"/")),char=>char.charCodeAt(0));
+  const subscription=await registration.pushManager.getSubscription() ||
+    await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:bytes});
+  const endpointId=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(subscription.endpoint))
+    .then(buffer=>[...new Uint8Array(buffer)].map(byte=>byte.toString(16).padStart(2,"0")).join(""));
+  await setDoc(userDoc("pushSubscriptions",endpointId),{subscription:subscription.toJSON(),updatedAt:serverTimestamp()});
+}
 const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
 
 function toast(message) { const el=$("#toast"); el.textContent=message; el.classList.add("show"); clearTimeout(toast.timer); toast.timer=setTimeout(()=>el.classList.remove("show"),2200); }
@@ -140,6 +144,7 @@ async function login() {
 }
 
 function startSync() {
+  state.tasksLoaded=false;
   state.unsubs.forEach(unsub=>unsub()); state.unsubs=[];
   state.unsubs.push(onSnapshot(userCollection("categories"), snapshot => {
     state.categories=snapshot.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.order||0)-(b.order||0));
@@ -149,7 +154,8 @@ function startSync() {
   }));
   state.unsubs.push(onSnapshot(userCollection("tasks"), snapshot => {
     state.tasks=snapshot.docs.map(d=>({id:d.id,...d.data()}));
-    render();
+    state.tasksLoaded=true;
+    render();reminderService.tick();handleNotificationRoute();
   }));
 }
 
@@ -157,9 +163,9 @@ onAuthStateChanged(auth, async user => {
   state.user=user;
   $("#login").classList.toggle("hidden",!!user);
   $("#app").classList.toggle("hidden",!user);
-  if (!user) { state.unsubs.forEach(unsub=>unsub()); state.unsubs=[]; return; }
+  if (!user) { reminderService.stop();state.unsubs.forEach(unsub=>unsub()); state.unsubs=[]; return; }
   $("#userName").textContent=user.email || user.displayName || "";
-  startSync();
+  startSync();reminderService.start();handleNotificationRoute();
 });
 
 function selectArea(area) {
@@ -201,6 +207,13 @@ function formatDue(task){
   const date=new Date(task.dueDate+"T12:00:00");
   const label=new Intl.DateTimeFormat("he-IL",{day:"numeric",month:"short"}).format(date);
   return "📅 "+label+(task.dueTime?" · "+task.dueTime:"");
+}
+function formatReminder(task) {
+  const date=scheduleReminder(task);if(!date)return "";
+  const today=new Date(), tomorrow=new Date(today);tomorrow.setDate(today.getDate()+1);
+  const day=date.toDateString()===today.toDateString()?"היום":date.toDateString()===tomorrow.toDateString()?"מחר":
+    new Intl.DateTimeFormat("he-IL",{day:"numeric",month:"short"}).format(date);
+  return `🔔 ${day} ${new Intl.DateTimeFormat("he-IL",{hour:"2-digit",minute:"2-digit"}).format(date)}`;
 }
 function renderCalendar(){
   const month=state.calendarMonth,year=month.getFullYear(),monthIndex=month.getMonth();
@@ -318,7 +331,7 @@ function renderTasks() {
     <article class="task-card ${state.view==="tasks"?"active-task":"history-task"} ${task.completedAt?"completed-task":""} ${task.urgent?"urgent":""}" data-task-id="${task.id}">
       ${state.view==="tasks"?`<button class="drag-handle" data-drag="${task.id}" aria-label="שינוי סדר">⠿</button>`:""}
       ${state.view==="tasks"&&!task.completedAt?`<button class="complete-btn" data-complete="${task.id}" aria-label="${t("done")}">✓</button>`:`<span class="history-check">✓</span>`}
-      <div class="task-copy"><p dir="${isHebrew(task.text)?"rtl":"ltr"}">${escapeHtml(task.text)}</p>${task.dueDate?`<small>${formatDue(task)}</small>`:""}${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
+      <div class="task-copy"><p dir="${isHebrew(task.text)?"rtl":"ltr"}">${escapeHtml(task.text)}</p>${task.dueDate?`<small>${formatDue(task)}</small>`:""}${formatReminder(task)?`<small>${formatReminder(task)}</small>`:""}${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
       <div class="task-actions"><button class="icon-btn" data-actions="${task.id}" aria-label="אפשרויות משימה">•••</button></div>
     </article>`).join(""):`<div class="empty"><b>${t("empty")}</b><span>${t("emptyHint")}</span></div>`;
   $$("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
@@ -399,28 +412,51 @@ function openTaskMenu(anchor,task) {
 function openTask(task=null,presetDate="") {
   closeMenus(); state.editingTask=task;
   const category=state.categories.find(c=>c.id===(task?.categoryId||state.selected));
-  if(!category){toast(t("error"));return;}
+  if(!category){openCategory();toast("כדי להוסיף משימה, צור רשימה תחילה");return;}
   $("#taskDialogTitle").textContent=task?t("editTask"):t("newTask");
   $("#taskDialogCategory").textContent=category?.name||"";
   $("#taskText").value=task?.text||""; $("#taskText").placeholder=t("taskPlaceholder"); $("#taskText").dir=isHebrew($("#taskText").value)?"rtl":"ltr";
   $("#taskDate").value=task?.dueDate||presetDate||"";$("#taskTime").value=task?.dueTime||"";
+  const reminder=task?.reminder;
+  $("#reminderEditor").open=!!reminder?.enabled;
+  $("#reminderEnabled").checked=!!reminder?.enabled;
+  const reminderDate=reminder?.dateTime?.toDate?.() || null;
+  $("#reminderDate").value=reminderDate ? [reminderDate.getFullYear(),String(reminderDate.getMonth()+1).padStart(2,"0"),String(reminderDate.getDate()).padStart(2,"0")].join("-") : "";
+  $("#reminderTime").value=reminderDate ? [reminderDate.getHours(),reminderDate.getMinutes()].map(n=>String(n).padStart(2,"0")).join(":") : "";
+  $("#reminderRepeat").value=reminder?.repeat||"none";$("#reminderLevel").value=reminder?.notificationLevel||"normal";
+  $("#customInterval").value=reminder?.customRepeat?.interval||1;$("#customUnit").value=reminder?.customRepeat?.unit||"day";
+  updateReminderFields();
   resetVoiceInput();
   $("#taskDialog").showModal(); setTimeout(()=>$("#taskText").focus(),50);
 }
-async function createTask(value,dueDate,dueTime){
+async function createTask(value,dueDate,dueTime,reminder){
   const maxOrder=Math.max(0,...state.tasks.filter(x=>x.categoryId===state.selected&&!x.completedAt).map(x=>x.order||0));
-  await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,createdAt:serverTimestamp(),completedAt:null,archivedAt:null});
+  await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,createdAt:serverTimestamp(),completedAt:null,archivedAt:null});
 }
 
+function updateReminderFields(){
+  $("#reminderFields").classList.toggle("hidden",!$("#reminderEnabled").checked);
+  $("#customRepeatFields").classList.toggle("hidden",$("#reminderRepeat").value!=="custom");
+}
+function reminderInput(){return {enabled:$("#reminderEnabled").checked,date:$("#reminderDate").value,
+  time:$("#reminderTime").value,repeat:$("#reminderRepeat").value,
+  interval:$("#customInterval").value,unit:$("#customUnit").value,level:$("#reminderLevel").value};}
 async function saveTask(event) {
   event.preventDefault(); const value=$("#taskText").value.trim(); if(!value)return;
   const dueDate=$("#taskDate").value,dueTime=$("#taskTime").value;
   const saveButton=$("#saveTaskBtn"); saveButton.disabled=true;
-  await safe(async()=>{
-    if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,updatedAt:serverTimestamp()});
-    else await createTask(value,dueDate,dueTime);
+  try {
+    const input=reminderInput();
+    const reminder=state.editingTask?updateReminder(state.editingTask.reminder,input):createReminder(input);
+    if(reminder.enabled) {
+      await reminderService.permission();
+      registerPushSubscription().catch(console.error);
+    }
+    if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,updatedAt:serverTimestamp()});
+    else await createTask(value,dueDate,dueTime,reminder);
     $("#taskDialog").close(); toast(t("saved"));
-  });
+    if(reminder.enabled && (!("Notification" in window) || Notification.permission!=="granted"))toast("התזכורת נשמרה, אך התראות אינן מורשות במכשיר זה");
+  } catch(error) {console.error(error);toast(error.message||t("error"));}
   saveButton.disabled=false;
 }
 
@@ -468,7 +504,7 @@ function openConfirm(type,item) {
 async function confirmAction(event) {
   event.preventDefault();const {type,item}=state.confirmAction;
   await safe(async()=>{
-    if(type==="complete")await updateDoc(userDoc("tasks",item.id),{completedAt:serverTimestamp(),archivedAt:null});
+    if(type==="complete")await reminderService.markReminderCompleted(item.id);
     if(type==="restore")await updateDoc(userDoc("tasks",item.id),{completedAt:null,archivedAt:null});
     if(type==="delete")await deleteDoc(userDoc("tasks",item.id));
     if(type==="deleteList"){
@@ -478,6 +514,38 @@ async function confirmAction(event) {
     $("#confirmDialog").close();
   });
 }
+
+let handlingNotification=false;
+async function handleNotificationRoute() {
+  if(handlingNotification)return;
+  const params=new URLSearchParams(location.search);
+  const taskId=params.get("task"), action=params.get("action");
+  if(!taskId || !state.user || !state.tasksLoaded) return;
+  handlingNotification=true;
+  // Action links are processed after sign-in and only within the signed-in user's collection.
+  if(action) {
+    try {
+      if(action==="done")await reminderService.markReminderCompleted(taskId);
+      if(action==="snooze10" || action==="snooze60")await reminderService.snoozeReminder(taskId,action==="snooze10"?10:60);
+    } catch(error) {console.error(error);toast(t("error"));handlingNotification=false;return;}
+  }
+  const task=state.tasks.find(item=>item.id===taskId);
+  if(task) {
+    state.area=task.area;state.selected=task.categoryId;state.view="tasks";render();
+    document.querySelector(`[data-task-id="${CSS.escape(taskId)}"]`)?.scrollIntoView({block:"center"});
+  }
+  history.replaceState(null,"",location.pathname);
+  handlingNotification=false;
+}
+
+navigator.serviceWorker?.addEventListener("message",event=>{
+  if(event.data?.type!=="reminder-action")return;
+  const {taskId,action}=event.data;
+  const url=new URL(location.href);url.searchParams.set("task",taskId);
+  if(action)url.searchParams.set("action",action);
+  history.replaceState(null,"",url);
+  handleNotificationRoute();
+});
 
 function openCategoryMenu() {
   const category=state.categories.find(c=>c.id===state.selected);if(!category)return;closeMenus();
@@ -498,6 +566,7 @@ $("#calendarPrev").onclick=()=>shiftCalendarMonth(-1);$("#calendarNext").onclick
 $("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#categoryName").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
+$("#reminderEnabled").onchange=updateReminderFields;$("#reminderRepeat").onchange=updateReminderFields;
 $$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
 $$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
 document.addEventListener("click",event=>{if(!event.target.closest(".task-actions")&&!event.target.closest("#categoryMenuBtn")&&!event.target.closest("#appMenu"))closeMenus();});
