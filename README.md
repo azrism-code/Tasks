@@ -1,12 +1,29 @@
-# Azri Tasks
+# My Tasks
 
-A lightweight bilingual task manager for desktop and mobile.
+אפליקציית משימות אישית, mobile-first, בעברית וב־RTL, עם סנכרון Firestore והתקנה כ־PWA.
 
-- Work and Private areas
-- Custom lists and task CRUD
-- Done confirmation and History
-- Hebrew/English with automatic text direction
-- Google sign-in and Firestore real-time sync
-- Installable PWA hosted on GitHub Pages
+גרסה נוכחית: **v2.1.0**
 
-Production: https://azrism-code.github.io/Tasks/
+## יכולות עיקריות
+
+- קטגוריות ראשיות ותתי־קטגוריות בהתאמה אישית
+- יצירה, עריכה, מחיקה, מיון והשלמת משימות
+- משימות דחופות, היסטוריה ושמירת המיקום האחרון
+- הקלדה והקלטה בעברית
+- תזכורת אופציונלית עם תאריך ושעה
+- חזרה יומית, שבועית, חודשית או מותאמת
+- רמות התראה: רגיל, חשוב וקריטי
+- פעולות מהתראה: בוצע, דחה 10 דקות ודחה שעה
+- הפרדה מלאה של הנתונים בין משתמשים
+
+## תזכורות PWA
+
+האפליקציה מבקשת הרשאת התראות רק כשהמשתמש מפעיל תזכורת לראשונה.
+
+כאשר האפליקציה פתוחה, מתזמן מקומי בודק תזכורות. התראות כשהאפליקציה סגורה דורשות Web Push ופריסה של ה־Worker שבתיקיית `worker/`, יחד עם מפתחות VAPID ו־Firebase Service Account. רכיב זה מוכן בקוד אך אינו פרוס אוטומטית.
+
+PWA רגיל אינו יכול להבטיח התראת Alarm מלאה של Android. התמיכה העתידית ב־Capacitor נשמרת מאחורי שכבת `reminders.js`.
+
+## כתובת
+
+https://azrism-code.github.io/Tasks/
