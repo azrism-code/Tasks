@@ -67,7 +67,7 @@ async function claim(env,token,task,next) {
   } catch(error) {if(/Firestore 409|Firestore 412/.test(error.message))return false;throw error;}
 }
 async function scheduled(env) {
-  if(!env.FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID==='SET_NEW_PROJECT_ID' || env.FIREBASE_PROJECT_ID==='azri-tasks')throw new Error('A separate Firebase project is required');
+  if(!env.FIREBASE_PROJECT_ID || env.FIREBASE_PROJECT_ID==='SET_NEW_PROJECT_ID')throw new Error('FIREBASE_PROJECT_ID is required');
   const token=await accessToken(env);
   const tasks=await dueTasks(env,token);
   webpush.setVapidDetails(env.VAPID_SUBJECT,env.VAPID_PUBLIC_KEY,env.VAPID_PRIVATE_KEY);
