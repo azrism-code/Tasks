@@ -1,0 +1,119 @@
+import { Timestamp, updateDoc, runTransaction } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+export const reminderDefaults = {
+  enabled: false, dateTime: null, nextTriggerAt: null, timeZone: null, repeat: "none", customRepeat: { interval: 1, unit: "day" },
+  notificationLevel: "normal", snoozedUntil: null, lastTriggeredAt: null
+};
+const repeats = new Set(["none", "daily", "weekly", "monthly", "custom"]);
+const levels = new Set(["normal", "important", "critical"]);
+const units = new Set(["day", "week", "month"]);
+const asDate = value => value?.toDate ? value.toDate() : value ? new Date(value) : null;
+const validDate = value => value && !Number.isNaN(value.getTime());
+const stamp = value => value ? Timestamp.fromDate(value) : null;
+
+export function createReminder({enabled, date, time, repeat, interval, unit, level}) {
+  if (!enabled) return {...reminderDefaults};
+  const dateTime = new Date(`${date}T${time}`);
+  if (!validDate(dateTime)) throw new Error("יש להזין תאריך ושעה לתזכורת");
+  if (!repeats.has(repeat) || !levels.has(level) || !units.has(unit)) throw new Error("הגדרת תזכורת לא תקינה");
+  const count = Number(interval);
+  if (!Number.isInteger(count) || count < 1 || count > 365) throw new Error("מרווח חזרה לא תקין");
+  return {enabled:true,dateTime:stamp(dateTime),nextTriggerAt:stamp(dateTime),
+    timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone,repeat,
+    customRepeat:{interval:count,unit},notificationLevel:level,snoozedUntil:null,lastTriggeredAt:null};
+}
+export const updateReminder = (current, input) => {
+  const next = createReminder(input);
+  if (next.enabled && current?.enabled && +asDate(current.dateTime) === +asDate(next.dateTime)) {
+    if(current.repeat===next.repeat && current.customRepeat?.interval===next.customRepeat.interval &&
+      current.customRepeat?.unit===next.customRepeat.unit) {
+      next.nextTriggerAt=current.nextTriggerAt||next.dateTime;
+      next.snoozedUntil=current.snoozedUntil||null;
+      next.lastTriggeredAt=current.lastTriggeredAt||null;
+    }
+  }
+  return next;
+};
+export const deleteReminder = () => ({...reminderDefaults});
+
+export function nextOccurrence(reminder, after) {
+  const result = asDate(reminder.dateTime);
+  if (!validDate(result) || reminder.repeat === "none") return null;
+  const [interval, unit] = reminder.repeat === "custom"
+    ? [reminder.customRepeat?.interval || 1, reminder.customRepeat?.unit || "day"]
+    : [1, {daily:"day",weekly:"week",monthly:"month"}[reminder.repeat]];
+  // Advance in local calendar time. Clamp months such as January 31 to February's last day.
+  for (let i=0; i<5000 && result <= after; i++) {
+    if (unit === "month") {
+      const day=result.getDate(), hour=result.getHours(), minute=result.getMinutes();
+      result.setDate(1); result.setMonth(result.getMonth()+interval);
+      const last=new Date(result.getFullYear(),result.getMonth()+1,0).getDate();
+      result.setDate(Math.min(day,last)); result.setHours(hour,minute,0,0);
+    } else result.setDate(result.getDate()+interval*(unit === "week" ? 7 : 1));
+  }
+  return result > after ? result : null;
+}
+
+export function scheduleReminder(task) {
+  if (!task || task.completedAt || task.archivedAt || !task.reminder?.enabled) return null;
+  const reminder=task.reminder;
+  const next=asDate(reminder.nextTriggerAt || reminder.snoozedUntil || reminder.dateTime);
+  return validDate(next) ? next : null;
+}
+
+export function createReminderService({db, taskRef, getTasks, onError}) {
+  let timer=null, busy=false;
+  async function permission() {
+    if (!("Notification" in window) || !("serviceWorker" in navigator)) return false;
+    if (Notification.permission === "default") await Notification.requestPermission();
+    return Notification.permission === "granted";
+  }
+  async function show(task) {
+    if (Notification.permission !== "granted") return;
+    const registration=await navigator.serviceWorker.ready;
+    await registration.showNotification(task.text, {
+      body:"תזכורת מ־My Tasks",
+      icon:"./icon.svg",tag:`reminder-${task.id}`,
+      renotify:true,requireInteraction:task.reminder.notificationLevel !== "normal",
+      vibrate:task.reminder.notificationLevel === "normal" ? undefined : [250,150,250],
+      data:{taskId:task.id},
+      actions:[{action:"done",title:"✅ בוצע"},{action:"snooze10",title:"⏰ דחה 10 דקות"},{action:"snooze60",title:"⏰ דחה שעה"}]
+    });
+  }
+  async function tick() {
+    if (busy || !("Notification" in window) || Notification.permission !== "granted") return; busy=true;
+    try {
+      for (const task of getTasks()) {
+        const due=scheduleReminder(task);
+        if (!due || due > new Date()) continue;
+        const ref=taskRef(task.id);
+        const claimed=await runTransaction(db,async tx=>{
+          const doc=await tx.get(ref);
+          if (!doc.exists()) return false;
+          const fresh={id:task.id,...doc.data()}, current=scheduleReminder(fresh);
+          if (!current || current > new Date()) return false;
+          const last=asDate(fresh.reminder.lastTriggeredAt);
+          if (last && last >= current) return false;
+          const next=nextOccurrence(fresh.reminder,new Date());
+          tx.update(ref,{"reminder.lastTriggeredAt":Timestamp.now(),
+            "reminder.nextTriggerAt":stamp(next),"reminder.snoozedUntil":null,
+            "reminder.enabled":!!next});
+          return true;
+        });
+        if (claimed) await show(task);
+      }
+    } catch (error) {onError(error);} finally {busy=false;}
+  }
+  return {
+    permission,
+    start() {this.stop(); timer=setInterval(tick,15000); tick();},
+    stop() {if(timer)clearInterval(timer);timer=null;},
+    tick,
+    snoozeReminder:async (id,minutes)=>updateDoc(taskRef(id),{
+      "reminder.enabled":true,"reminder.nextTriggerAt":Timestamp.fromDate(new Date(Date.now()+minutes*60000)),
+      "reminder.snoozedUntil":Timestamp.fromDate(new Date(Date.now()+minutes*60000))
+    }),
+    markReminderCompleted:async id=>updateDoc(taskRef(id),{completedAt:Timestamp.now(),archivedAt:null,
+      "reminder.enabled":false,"reminder.snoozedUntil":null})
+  };
+}
