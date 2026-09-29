@@ -4,16 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1E3A5F">
-  <meta name="description" content="A simple bilingual task manager">
-  <link rel="manifest" href="./manifest.webmanifest?v=1.8.0">
-  <link rel="icon" href="./icon.svg?v=1.8.0" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=1.9.0-94112c0e">
-  <title>My Tasks v1.9.0</title>
+  <meta name="description" content="My Tasks">
+  <link rel="manifest" href="./manifest.webmanifest?v=2.1.0">
+  <link rel="icon" href="./icon.svg?v=2.1.0" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=2.1.0">
+  <title>My Tasks v2.1.0</title>
 </head>
 <body>
   <div id="login" class="login-screen">
     <div class="login-card">
-      <img class="brand-logo" src="./header-logo.svg?v=1.8.1" alt="My Tasks">
+      <img class="brand-logo" src="./header-logo.svg?v=2.1.0" alt="My Tasks">
       <h1>My Tasks</h1>
       <p>המשימות שלך, פשוט ובכל מקום.</p>
       <button id="loginBtn" class="primary-btn">התחברות עם Google</button>
@@ -22,7 +22,7 @@
 
   <main id="app" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=1.8.1" alt=""><span>My Tasks</span><small class="version">v1.9.0</small></div>
+      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.1.0" alt=""><span>My Tasks</span><small class="version">v2.1.0</small></div>
       <p class="side-label" data-i18n="areas">Areas</p>
       <nav class="area-nav">
         <button data-area="work" class="active">▣ <span data-i18n="work">Work</span><b id="workCount">0</b></button>
@@ -34,7 +34,7 @@
 
     <section class="workspace">
       <header class="mobile-header">
-        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=1.8.1" alt=""><span>My Tasks</span><small class="version">v1.9.0</small></div>
+        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.1.0" alt=""><span>My Tasks</span><small class="version">v2.1.0</small></div>
         <button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button>
       </header>
       <div class="content">
@@ -79,6 +79,16 @@
       <header><div><h2 id="taskDialogTitle">New task</h2><p id="taskDialogCategory"></p></div><button type="button" data-close-dialog="taskDialog" class="close-btn">×</button></header>
       <textarea id="taskText" rows="5" required></textarea>
       <div class="task-schedule"><label>תאריך<input id="taskDate" type="date"></label><label>שעה<input id="taskTime" type="time"></label></div>
+      <details class="reminder-editor" id="reminderEditor"><summary>🔔 תזכורת (אופציונלי)</summary>
+        <label class="reminder-switch"><input id="reminderEnabled" type="checkbox"> הפעל תזכורת</label>
+        <div id="reminderFields" class="hidden">
+          <div class="task-schedule"><label>תאריך תזכורת<input id="reminderDate" type="date"></label><label>שעה<input id="reminderTime" type="time"></label></div>
+          <div class="task-schedule"><label>חזרה<select id="reminderRepeat"><option value="none">ללא חזרה</option><option value="daily">כל יום</option><option value="weekly">כל שבוע</option><option value="monthly">כל חודש</option><option value="custom">מותאמת אישית</option></select></label>
+          <label>רמת התראה<select id="reminderLevel"><option value="normal">רגיל</option><option value="important">חשוב</option><option value="critical">קריטי (מוגבל ב־PWA)</option></select></label></div>
+          <div id="customRepeatFields" class="task-schedule hidden"><label>כל כמה<input id="customInterval" type="number" min="1" max="365" value="1"></label><label>יחידות<select id="customUnit"><option value="day">ימים</option><option value="week">שבועות</option><option value="month">חודשים</option></select></label></div>
+          <small class="reminder-note">התראות ברקע כשהאפליקציה סגורה אינן מובטחות בלי שירות Push בצד שרת. הצליל והרטט תלויים במכשיר ובדפדפן.</small>
+        </div>
+      </details>
       <div class="voice-entry"><button id="voiceTaskBtn" type="button" class="voice-dialog-btn">🎙️ <span>הקלט</span></button><small id="voiceStatus" aria-live="polite"></small></div>
       <footer><button type="button" data-close-dialog="taskDialog" class="secondary-btn" data-i18n="cancel">Cancel</button><button id="saveTaskBtn" type="submit" class="primary-btn" data-i18n="save">Save</button></footer>
     </form>
@@ -109,6 +119,6 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="./app.js?v=1.9.0-85aab4c1"></script>
+  <script type="module" src="./app.js?v=2.1.0"></script>
 </body>
 </html>
