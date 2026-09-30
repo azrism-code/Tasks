@@ -1,4 +1,5 @@
-:root{--navy:#1E3A5F;--blue:#2563EB;--private:#7C3AED;--ink:#172033;--muted:#738095;--line:#dfe5ee;--bg:#F8FAFC;--white:#fff;--success:#16A34A;--danger:#DC2626;--radius:15px;font-family:Inter,"Noto Sans Hebrew",Arial,sans-serif;color:var(--ink);background:var(--bg)}
+:root{--navy:#1E3A5F;--blue:#2563EB;--private:#7C3AED;--ink:#172033;--muted:#738095;--line:#dfe5ee;--bg:#F8FAFC;--white:#fff;--surface:#fff;--surface-soft:#edf3ff;--success:#16A34A;--danger:#DC2626;--radius:15px;font-family:Inter,"Noto Sans Hebrew",Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:16px;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{font-family:inherit;font-size:1rem}button,input,textarea,select{font:inherit}
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 80% 0,#eaf2ff 0,transparent 35%),var(--bg);min-height:100dvh}button,input,textarea,select{font:inherit}.hidden{display:none!important}
 .login-screen{min-height:100dvh;display:grid;place-items:center;padding:24px}.login-card{width:min(420px,100%);background:#fff;border:1px solid var(--line);border-radius:24px;padding:42px;text-align:center;box-shadow:0 24px 70px #1E3A5F18}.login-card .brand-mark{margin:auto;width:58px;height:58px;font-size:30px}.login-card h1{margin:20px 0 7px;font-size:2rem}.login-card p{margin:0 0 28px;color:var(--muted)}
 .app-shell{min-height:100dvh;display:flex}.sidebar{position:fixed;inset-block:0;inset-inline-start:0;width:248px;background:var(--navy);color:#d9e5fa;padding:26px 18px 20px;display:flex;flex-direction:column}.brand{display:flex;align-items:center;gap:11px;font-size:1.22rem;font-weight:800}.brand-mark{display:grid;place-items:center;width:34px;height:34px;border-radius:11px;background:#3275f5;color:#fff;box-shadow:0 6px 18px #07112688}.main-nav,.area-nav{display:grid;gap:5px}.main-nav{margin-top:34px;padding-bottom:24px;border-bottom:1px solid #ffffff17}.main-nav button,.area-nav button{border:0;background:transparent;color:#aebbd1;min-height:45px;border-radius:11px;padding:0 12px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:start}.main-nav button:hover,.main-nav button.active,.area-nav button:hover,.area-nav button.active{background:#ffffff12;color:#fff}.area-nav button.active{box-shadow:inset 3px 0 #4d8cff}[dir=rtl] .area-nav button.active{box-shadow:inset -3px 0 #4d8cff}.area-nav b{margin-inline-start:auto;border-radius:99px;background:#ffffff12;padding:2px 8px;font-size:.78rem}.side-label{margin:24px 12px 9px;color:#70809b;font-size:.72rem;font-weight:800;text-transform:uppercase;letter-spacing:.11em}.spacer{flex:1}.outline-btn{min-height:38px;border:1px solid currentColor;border-radius:10px;background:transparent;color:inherit;padding:0 14px;cursor:pointer}.user-button{margin-top:12px;padding:12px;border:0;border-radius:12px;background:#ffffff0c;color:#d9e5fa;text-align:start;cursor:pointer}.user-button span,.user-button small{display:block;overflow:hidden;text-overflow:ellipsis}.user-button small{margin-top:3px;color:#8391a8}
@@ -220,3 +221,44 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 .schedule-editor summary::-webkit-details-marker{display:none}
 .schedule-editor[open] summary{border-bottom:1px solid var(--line)}
 .schedule-editor .task-schedule{padding:0 12px 12px}
+
+/* v2.3.0 settings and consistent native/web typography */
+.mobile-area-switch button{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.settings-fields{display:grid;gap:14px}
+.settings-fields label{display:grid;gap:6px;color:var(--muted);font-size:.85rem;font-weight:700}
+.settings-note{margin:16px 0 0;color:var(--muted);font-size:.82rem;line-height:1.5}
+
+html[data-theme="dark"]{--ink:#E8EEF8;--muted:#9EABC0;--line:#35445A;--bg:#101722;--white:#1A2432;--surface:#1A2432;--surface-soft:#243249;background:#101722;color-scheme:dark}
+html[data-theme="dark"] body,
+html[data-theme="dark"] .workspace{background:var(--bg);color:var(--ink)}
+html[data-theme="dark"] .task-card,
+html[data-theme="dark"] .category-tab,
+html[data-theme="dark"] .category-add,
+html[data-theme="dark"] .category-more,
+html[data-theme="dark"] .category-picker,
+html[data-theme="dark"] .category-picker button,
+html[data-theme="dark"] .calendar-day,
+html[data-theme="dark"] .calendar-task,
+html[data-theme="dark"] .schedule-editor,
+html[data-theme="dark"] dialog,
+html[data-theme="dark"] dialog textarea,
+html[data-theme="dark"] dialog input,
+html[data-theme="dark"] dialog select,
+html[data-theme="dark"] .secondary-btn,
+html[data-theme="dark"] .complete-btn,
+html[data-theme="dark"] .action-menu,
+html[data-theme="dark"] .category-menu{background:#1A2432;color:var(--ink);border-color:var(--line)}
+html[data-theme="dark"] .mobile-view-switch{background:#263448}
+html[data-theme="dark"] .mobile-view-switch button.active{background:#1A2432;color:var(--ink)}
+html[data-theme="dark"] .mobile-area-switch button{background:#1A2432;color:#B8C4D6;border-color:var(--line)}
+html[data-theme="dark"] .mobile-area-switch button[data-area="work"].active{background:var(--blue);color:#fff;border-color:var(--blue)}
+html[data-theme="dark"] .mobile-area-switch button[data-area="private"].active{background:var(--private);color:#fff;border-color:var(--private)}
+html[data-theme="dark"] .category-tab.active,
+html[data-theme="dark"] .category-picker button.active{background:#233B63;border-color:#537FCB;color:#8CB4FF}
+html[data-theme="dark"] .category-count{background:#2B394C;color:#C1CCDA}
+html[data-theme="dark"] .task-card.completed-task{background:#17202C;color:#9EABC0}
+html[data-theme="dark"] .task-card.urgent{background:#172A48;border-color:#4F7FCC}
+html[data-theme="dark"] .quick-add input{background:#1A2432;color:var(--ink);border-color:var(--line)}
+html[data-theme="dark"] .action-menu button:hover,
+html[data-theme="dark"] .category-menu button:hover,
+html[data-theme="dark"] .category-more:hover{background:#243249}

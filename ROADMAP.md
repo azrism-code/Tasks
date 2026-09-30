@@ -1,10 +1,6 @@
 # My Tasks Roadmap
 
-## Next UI and settings improvements
-
-Implement after validating the Android APK and native reminders.
-
-### Approved
+## Completed in v2.3.0
 
 - Add a work icon to the **עבודה / Work** main category.
 - Add a home icon to the **פרטי / Private** main category.

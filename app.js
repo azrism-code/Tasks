@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.2.1";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.2.1";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.3.0";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.3.0";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -40,12 +40,28 @@ const text = {
 
 const lastArea=["work","private"].includes(localStorage.getItem("tasks-last-area"))?localStorage.getItem("tasks-last-area"):"work";
 const savedCategory = area => localStorage.getItem(`tasks-selected-${area}`) || "";
+const defaultSettings={theme:"light",areaLanguages:{work:"en",private:"he"}};
+function loadSettings(){
+  try{
+    const saved=JSON.parse(localStorage.getItem("my-tasks-settings")||"{}");
+    return {
+      theme:["light","dark"].includes(saved.theme)?saved.theme:defaultSettings.theme,
+      areaLanguages:{
+        work:["he","en"].includes(saved.areaLanguages?.work)?saved.areaLanguages.work:defaultSettings.areaLanguages.work,
+        private:["he","en"].includes(saved.areaLanguages?.private)?saved.areaLanguages.private:defaultSettings.areaLanguages.private
+      }
+    };
+  }catch{return structuredClone(defaultSettings);}
+}
 const todayKey=new Date().toISOString().slice(0,10);
-const state = { user:null, language:"he", area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
+const state = { user:null, language:"he", settings:loadSettings(), area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
 const isHebrew = value => /[\u0590-\u05FF]/.test(value);
+const contentLanguage = area => state.settings.areaLanguages[area||state.area];
+const contentDirection = area => contentLanguage(area)==="he"?"rtl":"ltr";
+function applySettings(){document.documentElement.dataset.theme=state.settings.theme;document.documentElement.style.colorScheme=state.settings.theme;}
 const isArchived = task => !!task.archivedAt || (!!task.completedAt && task.archivedAt===undefined);
 const userCollection = name => collection(db,"users",state.user.uid,name);
 const userDoc = (name,id) => doc(db,"users",state.user.uid,name,id);
@@ -103,8 +119,9 @@ function initVoiceInput(){
     if(voiceListening){voiceRecognition.stop();return;}
     const input=$("#taskText");
     baseText=input.value.trim();
-    voiceRecognition.lang=state.area==="private"?"he-IL":"en-US";
-    status.textContent=state.area==="private"?"מקשיב בעברית…":"Listening in English…";
+    const language=contentLanguage();
+    voiceRecognition.lang=language==="he"?"he-IL":"en-US";
+    status.textContent=language==="he"?"מקשיב בעברית…":"Listening in English…";
     try{voiceRecognition.start();}catch(error){console.error(error);status.textContent="לא ניתן להתחיל הקלטה. נסה שוב.";}
   };
   voiceRecognition.onstart=()=>{voiceListening=true;setVoiceButton(true);};
@@ -113,7 +130,7 @@ function initVoiceInput(){
     for(let index=0;index<event.results.length;index++)transcript+=event.results[index][0].transcript;
     const input=$("#taskText");
     input.value=[baseText,transcript.trim()].filter(Boolean).join(" ");
-    input.dir=isHebrew(input.value)?"rtl":"ltr";
+    input.dir=contentDirection();
   };
   voiceRecognition.onerror=event=>{
     console.error(event.error);
@@ -130,7 +147,7 @@ function initVoiceInput(){
 function resetVoiceInput(){
   if(voiceListening&&voiceRecognition)voiceRecognition.stop();
   setVoiceButton(false);
-  $("#voiceStatus").textContent=voiceSupported?(state.area==="private"?"זיהוי דיבור בעברית":"Speech recognition in English"):"להכתבה קולית יש לפתוח את האפליקציה ב-Chrome";
+  $("#voiceStatus").textContent=voiceSupported?(contentLanguage()==="he"?"זיהוי דיבור בעברית":"Speech recognition in English"):"להכתבה קולית יש לפתוח את האפליקציה ב-Chrome";
 }
 
 async function login() {
@@ -186,6 +203,7 @@ function selectArea(area) {
 function closeMenus(){ $$(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); $("#categoryPicker").classList.add("hidden"); }
 
 function render() {
+  applySettings();
   document.documentElement.lang="he";
   document.documentElement.dir="rtl";
   $$("[data-i18n]").forEach(el=>el.textContent=t(el.dataset.i18n));
@@ -238,7 +256,7 @@ function renderCalendar(){
   $$("[data-calendar-date]").forEach(button=>button.onclick=()=>{state.selectedCalendarDate=button.dataset.calendarDate;renderCalendar();});
   const selected=state.tasks.filter(task=>task.dueDate===state.selectedCalendarDate&&!isArchived(task)).sort((a,b)=>(a.dueTime||"99:99").localeCompare(b.dueTime||"99:99"));
   $("#calendarSelectedTitle").textContent=new Intl.DateTimeFormat("he-IL",{weekday:"long",day:"numeric",month:"long"}).format(new Date(state.selectedCalendarDate+"T12:00:00"));
-  $("#calendarTaskList").innerHTML=selected.length?selected.map(task=>`<button class="calendar-task ${task.completedAt?"completed-task":""}" data-calendar-task="${task.id}"><span dir="auto">${escapeHtml(task.text)}</span><small>${task.dueTime||"כל היום"} · ${task.area==="private"?"פרטי":"עבודה"}</small></button>`).join(""):'<div class="calendar-empty">אין משימות ביום זה</div>';
+  $("#calendarTaskList").innerHTML=selected.length?selected.map(task=>`<button class="calendar-task ${task.completedAt?"completed-task":""}" data-calendar-task="${task.id}"><span dir="${contentDirection(task.area)}">${escapeHtml(task.text)}</span><small>${task.dueTime||"כל היום"} · ${task.area==="private"?"פרטי":"עבודה"}</small></button>`).join(""):'<div class="calendar-empty">אין משימות ביום זה</div>';
   $$("[data-calendar-task]").forEach(button=>button.onclick=()=>openTask(state.tasks.find(task=>task.id===button.dataset.calendarTask)));
 }
 async function openTaskForDate(){
@@ -267,9 +285,10 @@ function addToPersonalCalendar(task){
 
 function renderCategories() {
   const categories=state.categories.filter(c=>c.area===state.area);
+  const direction=contentDirection();
   const countFor=category=>state.tasks.filter(task=>task.categoryId===category.id&&(state.view==="history"?isArchived(task):!isArchived(task))).length;
-  $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}"><span class="category-drag" aria-label="שינוי סדר">⠿</span><span class="category-name" dir="auto">${escapeHtml(c.name)}</span><span class="category-count">${countFor(c)}</span></button>`).join("")+`<button id="addCategory" class="category-add" aria-label="הוספת תת קטגוריה">＋</button>`;
-  $("#categoryPicker").innerHTML=categories.map(c=>`<button class="${c.id===state.selected?"active":""}" data-pick-category="${c.id}"><span dir="auto">${escapeHtml(c.name)}</span><b>${countFor(c)}</b></button>`).join("");
+  $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}" dir="${direction}"><span class="category-drag" aria-label="שינוי סדר">⠿</span><span class="category-name">${escapeHtml(c.name)}</span><span class="category-count">${countFor(c)}</span></button>`).join("")+`<button id="addCategory" class="category-add" aria-label="הוספת תת קטגוריה">＋</button>`;
+  $("#categoryPicker").innerHTML=categories.map(c=>`<button class="${c.id===state.selected?"active":""}" data-pick-category="${c.id}" dir="${direction}"><span>${escapeHtml(c.name)}</span><b>${countFor(c)}</b></button>`).join("");
   $$("[data-category]").forEach(el=>el.onclick=()=>{if(!state.suppressCategoryClick)selectCategory(el.dataset.category);});
   $$("[data-pick-category]").forEach(el=>el.onclick=()=>selectCategory(el.dataset.pickCategory));
   $("#addCategory").onclick=()=>openCategory();
@@ -327,7 +346,7 @@ function initCategoryDragging(){
 function renderTasks() {
   const category=state.categories.find(c=>c.id===state.selected);
   $("#categoryTitle").textContent=category?.name || "";
-  $("#categoryTitle").dir="auto";
+  $("#categoryTitle").dir=contentDirection();
   const items=state.tasks.filter(task=>task.area===state.area&&task.categoryId===state.selected&&(state.view==="history"?isArchived(task):!isArchived(task))).sort((a,b)=>{
     if(state.view==="history")return (b.archivedAt?.seconds||b.completedAt?.seconds||0)-(a.archivedAt?.seconds||a.completedAt?.seconds||0);
     if(!!a.completedAt!==!!b.completedAt)return a.completedAt?1:-1;
@@ -339,7 +358,7 @@ function renderTasks() {
     <article class="task-card ${state.view==="tasks"?"active-task":"history-task"} ${task.completedAt?"completed-task":""} ${task.urgent?"urgent":""}" data-task-id="${task.id}">
       ${state.view==="tasks"?`<button class="drag-handle" data-drag="${task.id}" aria-label="שינוי סדר">⠿</button>`:""}
       ${state.view==="tasks"&&!task.completedAt?`<button class="complete-btn" data-complete="${task.id}" aria-label="${t("done")}">✓</button>`:`<span class="history-check">✓</span>`}
-      <div class="task-copy"><p dir="${isHebrew(task.text)?"rtl":"ltr"}">${escapeHtml(task.text)}</p>${task.dueDate?`<small>${formatDue(task)}</small>`:""}${formatReminder(task)?`<small>${formatReminder(task)}</small>`:""}${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
+      <div class="task-copy"><p dir="${contentDirection(task.area)}">${escapeHtml(task.text)}</p>${task.dueDate?`<small>${formatDue(task)}</small>`:""}${formatReminder(task)?`<small>${formatReminder(task)}</small>`:""}${task.completedAt?`<small>${t("completed")} ${formatDate(task.completedAt)}</small>`:""}</div>
       <div class="task-actions"><button class="icon-btn" data-actions="${task.id}" aria-label="אפשרויות משימה">•••</button></div>
     </article>`).join(""):`<div class="empty"><b>${t("empty")}</b><span>${t("emptyHint")}</span></div>`;
   $$("[data-complete]").forEach(el=>el.onclick=()=>openConfirm("complete",state.tasks.find(x=>x.id===el.dataset.complete)));
@@ -419,11 +438,12 @@ function openTaskMenu(anchor,task) {
 
 function openTask(task=null,presetDate="") {
   closeMenus(); state.editingTask=task;
+  $("#saveTaskBtn").disabled=false;
   const category=state.categories.find(c=>c.id===(task?.categoryId||state.selected));
   if(!category){openCategory();toast("כדי להוסיף משימה, צור רשימה תחילה");return;}
   $("#taskDialogTitle").textContent=task?t("editTask"):t("newTask");
   $("#taskDialogCategory").textContent=category?.name||"";
-  $("#taskText").value=task?.text||""; $("#taskText").placeholder=t("taskPlaceholder"); $("#taskText").dir=isHebrew($("#taskText").value)?"rtl":"ltr";
+  $("#taskText").value=task?.text||""; $("#taskText").placeholder=t("taskPlaceholder"); $("#taskText").dir=contentDirection(); $("#taskText").lang=contentLanguage();
   $("#taskDate").value=task?.dueDate||presetDate||"";$("#taskTime").value=task?.dueTime||"";
   $("#scheduleEditor").open=false;
   updateScheduleSummary();
@@ -509,25 +529,41 @@ async function saveTask(event) {
   try {
     const input=reminderInput();
     const reminder=state.editingTask?updateReminder(state.editingTask.reminder,input):createReminder(input);
+    let savedId=state.editingTask?.id||null;
+    if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,updatedAt:serverTimestamp()});
+    else savedId=await createTask(value,dueDate,dueTime,reminder);
+    $("#taskDialog").close(); toast(t("saved"));
+    offerCalendarDownload(value,dueDate,dueTime);
     if(reminder.enabled) {
       await reminderService.permission();
       registerPushSubscription().catch(console.error);
     }
-    let savedId=state.editingTask?.id||null;
-    if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,updatedAt:serverTimestamp()});
-    else savedId=await createTask(value,dueDate,dueTime,reminder);
     if(savedId)await reminderService.scheduleNativeTask({id:savedId,text:value,reminder,completedAt:null,archivedAt:null});
-    $("#taskDialog").close(); toast(t("saved"));
-    offerCalendarDownload(value,dueDate,dueTime);
     if(reminder.enabled && (!("Notification" in window) || Notification.permission!=="granted"))toast("התזכורת נשמרה, אך התראות אינן מורשות במכשיר זה");
   } catch(error) {console.error(error);toast(error.message||t("error"));}
-  saveButton.disabled=false;
+  finally {saveButton.disabled=false;}
+}
+
+function openSettings(){
+  closeMenus();
+  $("#themeSetting").value=state.settings.theme;
+  $("#workLanguageSetting").value=state.settings.areaLanguages.work;
+  $("#privateLanguageSetting").value=state.settings.areaLanguages.private;
+  $("#settingsDialog").showModal();
+}
+function saveSettings(event){
+  event.preventDefault();
+  state.settings={theme:$("#themeSetting").value,areaLanguages:{work:$("#workLanguageSetting").value,private:$("#privateLanguageSetting").value}};
+  localStorage.setItem("my-tasks-settings",JSON.stringify(state.settings));
+  applySettings();
+  $("#settingsDialog").close();
+  render();toast(t("saved"));
 }
 
 function openCategory(category=null) {
   closeMenus(); state.editingCategory=category;
   $("#categoryDialogTitle").textContent=category?t("editList"):t("newList");
-  $("#categoryName").value=category?.name||""; $("#categoryName").placeholder=t("listName");
+  $("#categoryName").value=category?.name||""; $("#categoryName").placeholder=t("listName"); $("#categoryName").dir=contentDirection(); $("#categoryName").lang=contentLanguage();
   $("#categoryDialog").showModal(); setTimeout(()=>$("#categoryName").focus(),50);
 }
 async function saveCategory(event) {
@@ -624,16 +660,18 @@ $("#loginBtn").onclick=login;
 [$("#logoutBtn"),$("#menuLogoutBtn")].forEach(button=>button.onclick=()=>signOut(auth));
 $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
 $$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
+$("#menuSettingsBtn").onclick=openSettings;
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
 $("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;$("#moreCategoriesBtn").onclick=toggleCategoryPicker;
 $("#calendarPrev").onclick=()=>shiftCalendarMonth(-1);$("#calendarNext").onclick=()=>shiftCalendarMonth(1);$("#calendarAddTask").onclick=openTaskForDate;
-$("#taskText").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
-$("#categoryName").oninput=event=>event.target.dir=isHebrew(event.target.value)?"rtl":"ltr";
-$("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;
+$("#taskText").oninput=event=>event.target.dir=contentDirection();
+$("#categoryName").oninput=event=>event.target.dir=contentDirection();
+$("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;$("#settingsForm").onsubmit=saveSettings;
 $("#taskDate").oninput=updateScheduleSummary;$("#taskTime").oninput=updateScheduleSummary;
 $("#reminderEnabled").onchange=updateReminderFields;$("#reminderRepeat").onchange=updateReminderFields;
 $$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
 $$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
 document.addEventListener("click",event=>{if(!event.target.closest(".task-actions")&&!event.target.closest("#categoryMenuBtn")&&!event.target.closest("#appMenu"))closeMenus();});
-if("serviceWorker" in navigator)navigator.serviceWorker.register("./service-worker.js");
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./service-worker.js?v=2.3.0");
+applySettings();
 render();
