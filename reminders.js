@@ -63,7 +63,7 @@ export function scheduleReminder(task) {
 
 export function createReminderService({db, taskRef, getTasks, onError}) {
   let timer=null, busy=false, nativeInitialized=false;
-  const nativePlugin=()=>window.Capacitor?.isNativePlatform?.() ? window.Capacitor?.Plugins?.LocalNotifications : null;
+  const nativePlugin=()=>window.MyTasksNative?.isNative ? window.MyTasksNative.LocalNotifications : null;
   const notificationId=id=>{
     let hash=0;
     for(const char of String(id))hash=((hash<<5)-hash+char.charCodeAt(0))|0;
