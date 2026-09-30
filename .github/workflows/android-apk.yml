@@ -9,6 +9,7 @@ on:
       - "package.json"
       - "capacitor.config.json"
       - "scripts/**"
+      - "native-bridge.js"
       - "index.html"
       - "app.js"
       - "reminders.js"
