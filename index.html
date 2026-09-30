@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1E3A5F">
   <meta name="description" content="My Tasks">
-  <link rel="manifest" href="./manifest.webmanifest?v=2.3.0">
-  <link rel="icon" href="./icon.svg?v=2.3.0" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=2.3.0">
-  <title>My Tasks v2.3.0</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=2.4.0">
+  <link rel="icon" href="./icon.svg?v=2.4.0" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=2.4.0">
+  <title>My Tasks v2.4.0</title>
 </head>
 <body>
   <div id="login" class="login-screen">
     <div class="login-card">
-      <img class="brand-logo" src="./header-logo.svg?v=2.3.0" alt="My Tasks">
+      <img class="brand-logo" src="./header-logo.svg?v=2.4.0" alt="My Tasks">
       <h1>My Tasks</h1>
       <p>המשימות שלך, פשוט ובכל מקום.</p>
       <button id="loginBtn" class="primary-btn">התחברות עם Google</button>
@@ -22,7 +22,7 @@
 
   <main id="app" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.3.0" alt=""><span>My Tasks</span><small class="version">v2.3.0</small></div>
+      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.4.0" alt=""><span>My Tasks</span><small class="version">v2.4.0</small></div>
       <p class="side-label" data-i18n="areas">Areas</p>
       <nav class="area-nav">
         <button data-area="work" class="active"><span aria-hidden="true">💼</span> <span data-i18n="work">Work</span><b id="workCount">0</b></button>
@@ -34,7 +34,7 @@
 
     <section class="workspace">
       <header class="mobile-header">
-        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.3.0" alt=""><span>My Tasks</span><small class="version">v2.3.0</small></div>
+        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.4.0" alt=""><span>My Tasks</span><small class="version">v2.4.0</small></div>
         <button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button>
       </header>
       <div class="content">
@@ -126,9 +126,14 @@
     <form method="dialog" id="settingsForm">
       <header><div><h2>הגדרות</h2><p>תצוגה ושפת התוכן</p></div><button type="button" data-close-dialog="settingsDialog" class="close-btn">×</button></header>
       <div class="settings-fields">
-        <label>תצוגה<select id="themeSetting"><option value="light">בהיר</option><option value="dark">כהה</option></select></label>
-        <label>שפת התוכן בעבודה<select id="workLanguageSetting"><option value="he">עברית</option><option value="en">English</option></select></label>
-        <label>שפת התוכן בפרטי<select id="privateLanguageSetting"><option value="he">עברית</option><option value="en">English</option></select></label>
+        <fieldset><legend>תצוגה</legend><div class="segmented-control"><label><input type="radio" name="themeSetting" value="light"><span>☀️ בהיר</span></label><label><input type="radio" name="themeSetting" value="dark"><span>🌙 כהה</span></label></div></fieldset>
+        <fieldset><legend>שפת התוכן בעבודה</legend><div class="segmented-control"><label><input type="radio" name="workLanguageSetting" value="he"><span>עברית</span></label><label><input type="radio" name="workLanguageSetting" value="en"><span>English</span></label></div></fieldset>
+        <fieldset><legend>שפת התוכן בפרטי</legend><div class="segmented-control"><label><input type="radio" name="privateLanguageSetting" value="he"><span>עברית</span></label><label><input type="radio" name="privateLanguageSetting" value="en"><span>English</span></label></div></fieldset>
+        <section class="notification-settings-card">
+          <div><strong>התראות ותזכורות</strong><span id="notificationStatus" class="notification-status">בודק הרשאות…</span></div>
+          <div class="notification-settings-actions"><button id="requestNotificationPermissionBtn" type="button" class="secondary-btn">אפשר התראות</button><button id="testNotificationBtn" type="button" class="secondary-btn">שלח בדיקה</button><button id="openNotificationSettingsBtn" type="button" class="secondary-btn hidden">פתח הגדרות Android</button><button id="openExactAlarmSettingsBtn" type="button" class="secondary-btn hidden">אפשר תזכורות מדויקות</button></div>
+          <small id="notificationHelp">בדיקת ההתראה תופיע בתוך כחמש שניות.</small>
+        </section>
       </div>
       <p class="settings-note">השפה שנבחרה קובעת את כיוון הכתיבה ואת שפת ההקלטה. ממשק האפליקציה נשאר בעברית.</p>
       <footer><button type="button" data-close-dialog="settingsDialog" class="secondary-btn">ביטול</button><button type="submit" class="primary-btn">שמירה</button></footer>
@@ -136,6 +141,6 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="./app.js?v=2.3.0"></script>
+  <script type="module" src="./app.js?v=2.4.0"></script>
 </body>
 </html>

@@ -62,6 +62,12 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
   .view-title{font-size:1.25rem;margin:0 2px 8px}
 }
 
+/* Keep the native Android header below the system status bar. */
+@media(max-width:760px){
+  .native-app .mobile-header{height:calc(58px + max(env(safe-area-inset-top),24px));padding-top:max(env(safe-area-inset-top),24px)}
+  .native-app .mobile-header .app-menu-btn{top:calc(10px + max(env(safe-area-inset-top),24px))}
+}
+
 /* v1.3.1 stronger primary-area selection */
 .sidebar .area-nav button.active{background:#2563EB;color:#fff;box-shadow:0 7px 18px #07112655,inset 4px 0 #8db5ff;font-weight:800}
 [dir=rtl] .sidebar .area-nav button.active{box-shadow:0 7px 18px #07112655,inset -4px 0 #8db5ff}
@@ -224,8 +230,22 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 
 /* v2.3.0 settings and consistent native/web typography */
 .mobile-area-switch button{display:inline-flex;align-items:center;justify-content:center;gap:7px}
-.settings-fields{display:grid;gap:14px}
-.settings-fields label{display:grid;gap:6px;color:var(--muted);font-size:.85rem;font-weight:700}
+.settings-fields{display:grid;gap:16px}
+.settings-fields fieldset{margin:0;padding:0;border:0}
+.settings-fields legend{margin-bottom:8px;color:var(--muted);font-size:.82rem;font-weight:750}
+.segmented-control{display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:4px;border-radius:13px;background:#e9eef6}
+.segmented-control label{cursor:pointer}
+.segmented-control input{position:absolute;opacity:0;pointer-events:none}
+.segmented-control span{min-height:40px;display:flex;align-items:center;justify-content:center;border-radius:10px;color:#637087;font-weight:750;transition:.18s}
+.segmented-control input:checked+span{background:#fff;color:var(--navy);box-shadow:0 3px 10px #1E3A5F1c}
+.segmented-control input:focus-visible+span{outline:3px solid #75a0f455}
+.notification-settings-card{display:grid;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.notification-settings-card>div:first-child{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.notification-status{font-size:.78rem;font-weight:750;text-align:end;color:var(--muted)}
+.notification-status.success{color:var(--success)}.notification-status.warning{color:#d48a00}.notification-status.blocked{color:var(--danger)}
+.notification-settings-actions{display:flex;flex-wrap:wrap;gap:7px}
+.notification-settings-actions button{min-height:38px;padding:0 12px;font-size:.82rem}
+.notification-settings-card small{color:var(--muted);line-height:1.4}
 .settings-note{margin:16px 0 0;color:var(--muted);font-size:.82rem;line-height:1.5}
 
 html[data-theme="dark"]{--ink:#E8EEF8;--muted:#9EABC0;--line:#35445A;--bg:#101722;--white:#1A2432;--surface:#1A2432;--surface-soft:#243249;background:#101722;color-scheme:dark}
@@ -246,9 +266,12 @@ html[data-theme="dark"] dialog input,
 html[data-theme="dark"] dialog select,
 html[data-theme="dark"] .secondary-btn,
 html[data-theme="dark"] .complete-btn,
+html[data-theme="dark"] .app-menu,
 html[data-theme="dark"] .action-menu,
 html[data-theme="dark"] .category-menu{background:#1A2432;color:var(--ink);border-color:var(--line)}
 html[data-theme="dark"] .mobile-view-switch{background:#263448}
+html[data-theme="dark"] .segmented-control{background:#263448}
+html[data-theme="dark"] .segmented-control input:checked+span{background:#35445A;color:#fff}
 html[data-theme="dark"] .mobile-view-switch button.active{background:#1A2432;color:var(--ink)}
 html[data-theme="dark"] .mobile-area-switch button{background:#1A2432;color:#B8C4D6;border-color:var(--line)}
 html[data-theme="dark"] .mobile-area-switch button[data-area="work"].active{background:var(--blue);color:#fff;border-color:var(--blue)}
@@ -261,4 +284,8 @@ html[data-theme="dark"] .task-card.urgent{background:#172A48;border-color:#4F7FC
 html[data-theme="dark"] .quick-add input{background:#1A2432;color:var(--ink);border-color:var(--line)}
 html[data-theme="dark"] .action-menu button:hover,
 html[data-theme="dark"] .category-menu button:hover,
+html[data-theme="dark"] .app-menu button:hover,
 html[data-theme="dark"] .category-more:hover{background:#243249}
+html[data-theme="dark"] .app-menu{box-shadow:0 16px 42px #00000070}
+html[data-theme="dark"] .complete-btn{color:transparent}
+html[data-theme="dark"] .complete-btn:hover{color:#fff}

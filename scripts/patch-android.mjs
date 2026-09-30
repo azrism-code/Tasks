@@ -29,6 +29,43 @@ if(!activity.includes("setTextZoom(100)")){
   );
   await writeFile(activityPath,activity);
 }
+if(!activity.includes("NotificationSettingsPlugin.class")){
+  activity=activity.replace("super.onCreate(savedInstanceState);","registerPlugin(NotificationSettingsPlugin.class);\n        super.onCreate(savedInstanceState);");
+  await writeFile(activityPath,activity);
+}
+
+const settingsPluginPath="android/app/src/main/java/com/azri/mytasks/NotificationSettingsPlugin.java";
+await writeFile(settingsPluginPath,`package com.azri.mytasks;
+
+import android.content.Intent;
+import android.net.Uri;
+import android.provider.Settings;
+
+import com.getcapacitor.JSObject;
+import com.getcapacitor.Plugin;
+import com.getcapacitor.PluginCall;
+import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.PluginMethod;
+
+@CapacitorPlugin(name = "NotificationSettings")
+public class NotificationSettingsPlugin extends Plugin {
+    @PluginMethod
+    public void openNotificationSettings(PluginCall call) {
+        Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+            .putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
+        getActivity().startActivity(intent);
+        call.resolve(new JSObject());
+    }
+
+    @PluginMethod
+    public void openExactAlarmSettings(PluginCall call) {
+        Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+            .setData(Uri.parse("package:" + getContext().getPackageName()));
+        getActivity().startActivity(intent);
+        call.resolve(new JSObject());
+    }
+}
+`);
 
 const iconSizes={mdpi:48,hdpi:72,xhdpi:96,xxhdpi:144,xxxhdpi:192};
 for(const density of Object.keys(iconSizes)){

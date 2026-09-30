@@ -64,6 +64,7 @@ export function scheduleReminder(task) {
 export function createReminderService({db, taskRef, getTasks, onError}) {
   let timer=null, busy=false, nativeInitialized=false;
   const nativePlugin=()=>window.MyTasksNative?.isNative ? window.MyTasksNative.LocalNotifications : null;
+  const settingsPlugin=()=>window.MyTasksNative?.isNative ? window.MyTasksNative.NotificationSettings : null;
   const notificationId=id=>{
     let hash=0;
     for(const char of String(id))hash=((hash<<5)-hash+char.charCodeAt(0))|0;
@@ -97,13 +98,24 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
     });
     return plugin;
   }
-  async function permission() {
+  async function status() {
+    const plugin=await initNative();
+    if(plugin){
+      const display=await plugin.checkPermissions();
+      let exact={exact_alarm:"unknown"};
+      try{exact=await plugin.checkExactNotificationSetting();}catch(error){console.debug(error);}
+      const pending=await plugin.getPending().catch(()=>({notifications:[]}));
+      return {native:true,display:display.display,exact:exact.exact_alarm,pending:pending.notifications?.length||0};
+    }
+    return {native:false,display:("Notification" in window)?Notification.permission:"unsupported",exact:"not-applicable",pending:0};
+  }
+  async function permission(requestExact=true) {
     const plugin=await initNative();
     if(plugin){
       let status=await plugin.checkPermissions();
       if(status.display!=="granted")status=await plugin.requestPermissions();
       if(status.display!=="granted")return false;
-      try{
+      if(requestExact)try{
         const exact=await plugin.checkExactNotificationSetting();
         if(exact.exact_alarm!=="granted")await plugin.changeExactNotificationSetting();
       }catch(error){console.debug(error);}
@@ -115,13 +127,13 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
   }
   async function scheduleNativeTask(task) {
     const plugin=await initNative();
-    if(!plugin)return false;
+    if(!plugin)return {scheduled:false,reason:"not-native"};
     const id=notificationId(task.id);
     await plugin.cancel({notifications:[{id}]});
     const due=scheduleReminder(task);
-    if(!due)return true;
+    if(!due)return {scheduled:false,reason:"no-reminder"};
     const status=await plugin.checkPermissions();
-    if(status.display!=="granted")return false;
+    if(status.display!=="granted")return {scheduled:false,reason:"notifications-blocked"};
     const at=due<=new Date()?new Date(Date.now()+1500):due;
     const level=task.reminder?.notificationLevel||"normal";
     const result=await plugin.schedule({notifications:[{
@@ -133,7 +145,40 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
       isExactNotification:true,isExactMandatory:false
     }]});
     if(result?.warning)console.warn(result.warning);
-    return true;
+    const pending=await plugin.getPending();
+    const verified=!!pending.notifications?.some(notification=>notification.id===id);
+    return {scheduled:verified,reason:verified?null:"not-registered",warning:result?.warning||null,id};
+  }
+  async function testNotification() {
+    const plugin=await initNative();
+    if(!plugin){
+      if(!await permission(false))throw new Error("הרשאת ההתראות חסומה בדפדפן");
+      const registration=await navigator.serviceWorker.ready;
+      setTimeout(()=>registration.showNotification("My Tasks",{body:"התראת הבדיקה פועלת בהצלחה",icon:"./icon.svg",tag:"my-tasks-test"}),5000);
+      return {scheduled:true,warning:null};
+    }
+    if(!await permission(true))throw new Error("הרשאת ההתראות חסומה");
+    const id=94720311;
+    await plugin.cancel({notifications:[{id}]});
+    const result=await plugin.schedule({notifications:[{
+      id,title:"My Tasks",body:"התראת הבדיקה פועלת בהצלחה",
+      schedule:{at:new Date(Date.now()+5000),allowWhileIdle:true},
+      channelId:"tasks-important",iconColor:"#2563EB",autoCancel:true,
+      isExactNotification:true,isExactMandatory:false
+    }]});
+    const pending=await plugin.getPending();
+    if(!pending.notifications?.some(notification=>notification.id===id))throw new Error("התראת הבדיקה לא נרשמה ב־Android");
+    return {scheduled:true,warning:result?.warning||null};
+  }
+  async function openNotificationSettings(){
+    const plugin=settingsPlugin();
+    if(!plugin)throw new Error("פתיחת ההגדרות זמינה בגרסת Android בלבד");
+    await plugin.openNotificationSettings();
+  }
+  async function openExactAlarmSettings(){
+    const plugin=settingsPlugin();
+    if(!plugin)throw new Error("פתיחת ההגדרות זמינה בגרסת Android בלבד");
+    await plugin.openExactAlarmSettings();
   }
   async function syncNative() {
     const plugin=await initNative();
@@ -198,7 +243,7 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
     if(plugin)await plugin.cancel({notifications:[{id:notificationId(id)}]});
   }
   return {
-    permission,
+    permission,status,testNotification,openNotificationSettings,openExactAlarmSettings,
     start() {
       this.stop();
       if(nativePlugin()){

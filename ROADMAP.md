@@ -12,6 +12,15 @@
 - The selected content language controls task alignment, typing direction and speech-recognition language.
 - The application interface itself remains in Hebrew.
 
+## Completed in v2.4.0
+
+- Modern segmented settings controls instead of dropdowns.
+- Notification permission status and first-run explanation.
+- Test notification for PWA and Android.
+- Android pending-notification verification and direct settings shortcuts.
+- Android status-bar safe-area handling.
+- Dark-mode menu and completion-control visibility fixes.
+
 ### Suggested settings to consider
 
 - Default reminder timing: at task time, 5, 10, 30 or 60 minutes before.

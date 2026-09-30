@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.3.0";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.3.0";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.0";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.0";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -54,7 +54,7 @@ function loadSettings(){
   }catch{return structuredClone(defaultSettings);}
 }
 const todayKey=new Date().toISOString().slice(0,10);
-const state = { user:null, language:"he", settings:loadSettings(), area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
+const state = { user:null, language:"he", settings:loadSettings(), notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -66,6 +66,38 @@ const isArchived = task => !!task.archivedAt || (!!task.completedAt && task.arch
 const userCollection = name => collection(db,"users",state.user.uid,name);
 const userDoc = (name,id) => doc(db,"users",state.user.uid,name,id);
 const reminderService=createReminderService({db,taskRef:id=>userDoc("tasks",id),getTasks:()=>state.tasks,onError:console.error});
+async function refreshNotificationStatus(renderAfter=false){
+  try{state.notificationStatus=await reminderService.status();}
+  catch(error){console.error(error);state.notificationStatus={native:!!window.MyTasksNative?.isNative,display:"error",exact:"unknown",pending:0};}
+  updateNotificationSettingsUi();
+  if(renderAfter)render();
+  return state.notificationStatus;
+}
+async function offerInitialNotificationPermission(){
+  const status=await refreshNotificationStatus(true);
+  const key="my-tasks-notification-intro-v1";
+  if(status.display==="granted"||localStorage.getItem(key))return;
+  localStorage.setItem(key,"shown");
+  setTimeout(async()=>{
+    if(!confirm("כדי לקבל תזכורות גם כשהאפליקציה סגורה, יש לאפשר ל־My Tasks לשלוח התראות. לאפשר עכשיו?"))return;
+    await requestNotificationPermission();
+  },250);
+}
+function notificationStatusLabel(status=state.notificationStatus){
+  if(!status)return "בודק הרשאות…";
+  if(status.display!=="granted")return "⛔ ההתראות חסומות";
+  if(status.native&&status.exact!=="granted")return "⚠️ התראות פעילות, תזמון מדויק אינו מאושר";
+  return status.native?`✅ פעיל · ${status.pending} תזכורות מתוזמנות`:"✅ התראות הדפדפן פעילות";
+}
+function updateNotificationSettingsUi(){
+  const label=$("#notificationStatus");if(!label)return;
+  const status=state.notificationStatus;
+  label.textContent=notificationStatusLabel(status);
+  label.className=`notification-status ${status?.display==="granted"?(status.native&&status.exact!=="granted"?"warning":"success"):"blocked"}`;
+  $("#openNotificationSettingsBtn").classList.toggle("hidden",!status?.native);
+  $("#openExactAlarmSettingsBtn").classList.toggle("hidden",!status?.native||status.exact==="granted");
+  $("#requestNotificationPermissionBtn").classList.toggle("hidden",status?.display==="granted");
+}
 async function registerPushSubscription() {
   if(!webPushPublicKey || Notification.permission!=="granted" || !("PushManager" in window))return;
   const registration=await navigator.serviceWorker.ready;
@@ -190,7 +222,7 @@ onAuthStateChanged(auth, async user => {
   $("#app").classList.toggle("hidden",!user);
   if (!user) { reminderService.stop();state.unsubs.forEach(unsub=>unsub()); state.unsubs=[]; return; }
   $("#userName").textContent=user.email || user.displayName || "";
-  startSync();reminderService.start();handleNotificationRoute();
+  startSync();reminderService.start();handleNotificationRoute();offerInitialNotificationPermission();
 });
 
 function selectArea(area) {
@@ -239,7 +271,9 @@ function formatReminder(task) {
   const today=new Date(), tomorrow=new Date(today);tomorrow.setDate(today.getDate()+1);
   const day=date.toDateString()===today.toDateString()?"היום":date.toDateString()===tomorrow.toDateString()?"מחר":
     new Intl.DateTimeFormat("he-IL",{day:"numeric",month:"short"}).format(date);
-  return `🔔 ${day} ${new Intl.DateTimeFormat("he-IL",{hour:"2-digit",minute:"2-digit"}).format(date)}`;
+  const notificationsReady=state.notificationStatus?.display==="granted"&&(!state.notificationStatus.native||state.notificationStatus.exact==="granted");
+  const icon=notificationsReady?"🔔":"⚠️";
+  return `${icon} ${day} ${new Intl.DateTimeFormat("he-IL",{hour:"2-digit",minute:"2-digit"}).format(date)}`;
 }
 function renderCalendar(){
   const month=state.calendarMonth,year=month.getFullYear(),monthIndex=month.getMonth();
@@ -529,16 +563,23 @@ async function saveTask(event) {
   try {
     const input=reminderInput();
     const reminder=state.editingTask?updateReminder(state.editingTask.reminder,input):createReminder(input);
+    const displayPermission=reminder.enabled?reminderService.permission(false):Promise.resolve(true);
     let savedId=state.editingTask?.id||null;
     if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,updatedAt:serverTimestamp()});
     else savedId=await createTask(value,dueDate,dueTime,reminder);
     $("#taskDialog").close(); toast(t("saved"));
     offerCalendarDownload(value,dueDate,dueTime);
     if(reminder.enabled) {
-      await reminderService.permission();
+      const allowed=await displayPermission;
+      if(!allowed)throw new Error("המשימה נשמרה, אך Android חוסם התראות");
+      if(window.MyTasksNative?.isNative)await reminderService.permission(true);
       registerPushSubscription().catch(console.error);
     }
-    if(savedId)await reminderService.scheduleNativeTask({id:savedId,text:value,reminder,completedAt:null,archivedAt:null});
+    if(savedId){
+      const scheduled=await reminderService.scheduleNativeTask({id:savedId,text:value,reminder,completedAt:null,archivedAt:null});
+      if(reminder.enabled&&window.MyTasksNative?.isNative&&!scheduled.scheduled)throw new Error("המשימה נשמרה, אך התזכורת לא נרשמה ב־Android");
+    }
+    await refreshNotificationStatus(true);
     if(reminder.enabled && (!("Notification" in window) || Notification.permission!=="granted"))toast("התזכורת נשמרה, אך התראות אינן מורשות במכשיר זה");
   } catch(error) {console.error(error);toast(error.message||t("error"));}
   finally {saveButton.disabled=false;}
@@ -546,19 +587,38 @@ async function saveTask(event) {
 
 function openSettings(){
   closeMenus();
-  $("#themeSetting").value=state.settings.theme;
-  $("#workLanguageSetting").value=state.settings.areaLanguages.work;
-  $("#privateLanguageSetting").value=state.settings.areaLanguages.private;
+  $(`[name="themeSetting"][value="${state.settings.theme}"]`).checked=true;
+  $(`[name="workLanguageSetting"][value="${state.settings.areaLanguages.work}"]`).checked=true;
+  $(`[name="privateLanguageSetting"][value="${state.settings.areaLanguages.private}"]`).checked=true;
   $("#settingsDialog").showModal();
+  refreshNotificationStatus();
 }
 function saveSettings(event){
   event.preventDefault();
-  state.settings={theme:$("#themeSetting").value,areaLanguages:{work:$("#workLanguageSetting").value,private:$("#privateLanguageSetting").value}};
+  state.settings={theme:$("[name='themeSetting']:checked").value,areaLanguages:{work:$("[name='workLanguageSetting']:checked").value,private:$("[name='privateLanguageSetting']:checked").value}};
   localStorage.setItem("my-tasks-settings",JSON.stringify(state.settings));
   applySettings();
   $("#settingsDialog").close();
   render();toast(t("saved"));
 }
+async function requestNotificationPermission(){
+  try{
+    const allowed=await reminderService.permission(false);
+    await refreshNotificationStatus(true);
+    toast(allowed?"ההתראות אושרו":"ההתראות עדיין חסומות");
+  }catch(error){console.error(error);toast(error.message||t("error"));}
+}
+async function testNotification(){
+  const button=$("#testNotificationBtn");button.disabled=true;
+  try{
+    const result=await reminderService.testNotification();
+    toast(result.warning?"הבדיקה נרשמה, אך ייתכן עיכוב ללא הרשאת תזמון מדויק":"התראת בדיקה תופיע בתוך כחמש שניות");
+    await refreshNotificationStatus(true);
+  }catch(error){console.error(error);toast(error.message||t("error"));}
+  finally{button.disabled=false;}
+}
+async function openNotificationSettings(){try{await reminderService.openNotificationSettings();}catch(error){toast(error.message||t("error"));}}
+async function openExactAlarmSettings(){try{await reminderService.openExactAlarmSettings();}catch(error){toast(error.message||t("error"));}}
 
 function openCategory(category=null) {
   closeMenus(); state.editingCategory=category;
@@ -661,6 +721,10 @@ $("#loginBtn").onclick=login;
 $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
 $$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
 $("#menuSettingsBtn").onclick=openSettings;
+$("#requestNotificationPermissionBtn").onclick=requestNotificationPermission;
+$("#testNotificationBtn").onclick=testNotification;
+$("#openNotificationSettingsBtn").onclick=openNotificationSettings;
+$("#openExactAlarmSettingsBtn").onclick=openExactAlarmSettings;
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
 $("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;$("#moreCategoriesBtn").onclick=toggleCategoryPicker;
 $("#calendarPrev").onclick=()=>shiftCalendarMonth(-1);$("#calendarNext").onclick=()=>shiftCalendarMonth(1);$("#calendarAddTask").onclick=openTaskForDate;
@@ -672,6 +736,6 @@ $("#reminderEnabled").onchange=updateReminderFields;$("#reminderRepeat").onchang
 $$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
 $$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
 document.addEventListener("click",event=>{if(!event.target.closest(".task-actions")&&!event.target.closest("#categoryMenuBtn")&&!event.target.closest("#appMenu"))closeMenus();});
-if("serviceWorker" in navigator)navigator.serviceWorker.register("./service-worker.js?v=2.3.0");
+if("serviceWorker" in navigator)navigator.serviceWorker.register("./service-worker.js?v=2.4.0");
 applySettings();
 render();
