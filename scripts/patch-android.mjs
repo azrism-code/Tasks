@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, writeFile } from "node:fs/promises";
 
 const manifestPath = "android/app/src/main/AndroidManifest.xml";
 let manifest = await readFile(manifestPath, "utf8");
@@ -17,3 +17,12 @@ for (const permission of permissions) {
   }
 }
 await writeFile(manifestPath, manifest);
+
+const iconSizes={mdpi:48,hdpi:72,xhdpi:96,xxhdpi:144,xxxhdpi:192};
+for(const density of Object.keys(iconSizes)){
+  const target=`android/app/src/main/res/mipmap-${density}`;
+  await mkdir(target,{recursive:true});
+  await copyFile(`android-icons/ic_launcher-${density}.png`,`${target}/ic_launcher.png`);
+  await copyFile(`android-icons/ic_launcher-${density}.png`,`${target}/ic_launcher_round.png`);
+  await copyFile(`android-icons/ic_launcher_foreground-${density}.png`,`${target}/ic_launcher_foreground.png`);
+}

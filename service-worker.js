@@ -1,14 +1,14 @@
-const CACHE = "azri-tasks-v34";
+const CACHE = "azri-tasks-v35";
 const FILES = [
   "./",
   "./index.html",
-  "./style.css?v=2.2.0",
-  "./app.js?v=2.2.0",
-  "./reminders.js?v=2.2.0",
-  "./firebase-config.js?v=2.2.0",
-  "./manifest.webmanifest?v=2.2.0",
-  "./icon.svg?v=2.2.0",
-  "./header-logo.svg?v=2.2.0"
+  "./style.css?v=2.2.1",
+  "./app.js?v=2.2.1",
+  "./reminders.js?v=2.2.1",
+  "./firebase-config.js?v=2.2.1",
+  "./manifest.webmanifest?v=2.2.1",
+  "./icon.svg?v=2.2.1",
+  "./header-logo.svg?v=2.2.1"
 ];
 
 self.addEventListener("install", event => {

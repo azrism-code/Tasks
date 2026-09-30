@@ -1,11 +1,11 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithCredential, signInWithPopup, signInWithRedirect, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.2.0";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.2.0";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.2.1";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.2.1";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -136,9 +136,17 @@ function resetVoiceInput(){
 async function login() {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({prompt:"select_account"});
-  try { await signInWithPopup(auth,provider); }
+  try {
+    if(window.MyTasksNative?.isNative){
+      await window.MyTasksNative.GoogleSignIn.initialize({clientId:"707546310998-bks8tbq89lgu4o8vkgep4grmmvi1d7b0.apps.googleusercontent.com"});
+      const result=await window.MyTasksNative.GoogleSignIn.signIn();
+      await signInWithCredential(auth,GoogleAuthProvider.credential(result.idToken));
+      return;
+    }
+    await signInWithPopup(auth,provider);
+  }
   catch (error) {
-    if (["auth/popup-blocked","auth/popup-closed-by-user","auth/cancelled-popup-request"].includes(error.code)) await signInWithRedirect(auth,provider);
+    if (!window.MyTasksNative?.isNative && ["auth/popup-blocked","auth/popup-closed-by-user","auth/cancelled-popup-request"].includes(error.code)) await signInWithRedirect(auth,provider);
     else { console.error(error); toast(t("error")); }
   }
 }
