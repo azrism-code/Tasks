@@ -62,13 +62,90 @@ export function scheduleReminder(task) {
 }
 
 export function createReminderService({db, taskRef, getTasks, onError}) {
-  let timer=null, busy=false;
+  let timer=null, busy=false, nativeInitialized=false;
+  const nativePlugin=()=>window.Capacitor?.isNativePlatform?.() ? window.Capacitor?.Plugins?.LocalNotifications : null;
+  const notificationId=id=>{
+    let hash=0;
+    for(const char of String(id))hash=((hash<<5)-hash+char.charCodeAt(0))|0;
+    return hash===0?1:Math.abs(hash);
+  };
+  async function initNative() {
+    const plugin=nativePlugin();
+    if(!plugin || nativeInitialized)return plugin;
+    nativeInitialized=true;
+    await plugin.registerActionTypes({types:[{id:"TASK_REMINDER",actions:[
+      {id:"done",title:"✅ בוצע"},
+      {id:"snooze10",title:"⏰ דחה 10 דקות"},
+      {id:"snooze60",title:"⏰ דחה שעה"}
+    ]}]});
+    for(const channel of [
+      {id:"tasks-normal",name:"תזכורות רגילות",description:"תזכורות רגילות של My Tasks",importance:3,vibration:false},
+      {id:"tasks-important",name:"תזכורות חשובות",description:"תזכורות חשובות עם צליל ורטט",importance:4,vibration:true},
+      {id:"tasks-critical",name:"תזכורות קריטיות",description:"תזכורות דחופות של My Tasks",importance:5,vibration:true}
+    ]) {
+      try{await plugin.createChannel(channel);}catch(error){console.debug(error);}
+    }
+    await plugin.addListener("localNotificationActionPerformed",async event=>{
+      try{
+        const id=event.notification?.extra?.taskId;
+        if(!id)return;
+        if(event.actionId==="done")await markReminderCompleted(id);
+        if(event.actionId==="snooze10")await snoozeReminder(id,10);
+        if(event.actionId==="snooze60")await snoozeReminder(id,60);
+        await syncNative();
+      }catch(error){onError(error);}
+    });
+    return plugin;
+  }
   async function permission() {
+    const plugin=await initNative();
+    if(plugin){
+      let status=await plugin.checkPermissions();
+      if(status.display!=="granted")status=await plugin.requestPermissions();
+      if(status.display!=="granted")return false;
+      try{
+        const exact=await plugin.checkExactNotificationSetting();
+        if(exact.exact_alarm!=="granted")await plugin.changeExactNotificationSetting();
+      }catch(error){console.debug(error);}
+      return true;
+    }
     if (!("Notification" in window) || !("serviceWorker" in navigator)) return false;
     if (Notification.permission === "default") await Notification.requestPermission();
     return Notification.permission === "granted";
   }
+  async function scheduleNativeTask(task) {
+    const plugin=await initNative();
+    if(!plugin)return false;
+    const id=notificationId(task.id);
+    await plugin.cancel({notifications:[{id}]});
+    const due=scheduleReminder(task);
+    if(!due)return true;
+    const status=await plugin.checkPermissions();
+    if(status.display!=="granted")return false;
+    const at=due<=new Date()?new Date(Date.now()+1500):due;
+    const level=task.reminder?.notificationLevel||"normal";
+    const result=await plugin.schedule({notifications:[{
+      id,title:task.text,body:"תזכורת מ־My Tasks",
+      schedule:{at,allowWhileIdle:true},
+      channelId:level==="critical"?"tasks-critical":level==="important"?"tasks-important":"tasks-normal",
+      actionTypeId:"TASK_REMINDER",extra:{taskId:task.id},
+      iconColor:"#2563EB",ongoing:level==="critical",autoCancel:level!=="critical",
+      isExactNotification:true,isExactMandatory:false
+    }]});
+    if(result?.warning)console.warn(result.warning);
+    return true;
+  }
+  async function syncNative() {
+    const plugin=await initNative();
+    if(!plugin)return false;
+    const status=await plugin.checkPermissions();
+    if(status.display!=="granted")return false;
+    for(const task of getTasks())await scheduleNativeTask(task);
+    return true;
+  }
   async function show(task) {
+    const plugin=nativePlugin();
+    if(plugin)return scheduleNativeTask(task);
     if (Notification.permission !== "granted") return;
     const registration=await navigator.serviceWorker.ready;
     await registration.showNotification(task.text, {
@@ -81,6 +158,7 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
     });
   }
   async function tick() {
+    if(nativePlugin())return;
     if (busy || !("Notification" in window) || Notification.permission !== "granted") return; busy=true;
     try {
       for (const task of getTasks()) {
@@ -104,16 +182,35 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
       }
     } catch (error) {onError(error);} finally {busy=false;}
   }
+  async function snoozeReminder(id,minutes){
+    const when=new Date(Date.now()+minutes*60000);
+    await updateDoc(taskRef(id),{
+      "reminder.enabled":true,"reminder.nextTriggerAt":Timestamp.fromDate(when),
+      "reminder.snoozedUntil":Timestamp.fromDate(when)
+    });
+    const task=getTasks().find(item=>item.id===id);
+    if(task)await scheduleNativeTask({...task,reminder:{...task.reminder,enabled:true,nextTriggerAt:Timestamp.fromDate(when),snoozedUntil:Timestamp.fromDate(when)}});
+  }
+  async function markReminderCompleted(id){
+    await updateDoc(taskRef(id),{completedAt:Timestamp.now(),archivedAt:null,
+      "reminder.enabled":false,"reminder.snoozedUntil":null});
+    const plugin=nativePlugin();
+    if(plugin)await plugin.cancel({notifications:[{id:notificationId(id)}]});
+  }
   return {
     permission,
-    start() {this.stop(); timer=setInterval(tick,15000); tick();},
+    start() {
+      this.stop();
+      if(nativePlugin()){
+        initNative().then(async plugin=>{
+          const status=await plugin.checkPermissions();
+          if(status.display==="granted")await syncNative();
+        }).catch(onError);
+      }else{
+        timer=setInterval(tick,15000);tick();
+      }
+    },
     stop() {if(timer)clearInterval(timer);timer=null;},
-    tick,
-    snoozeReminder:async (id,minutes)=>updateDoc(taskRef(id),{
-      "reminder.enabled":true,"reminder.nextTriggerAt":Timestamp.fromDate(new Date(Date.now()+minutes*60000)),
-      "reminder.snoozedUntil":Timestamp.fromDate(new Date(Date.now()+minutes*60000))
-    }),
-    markReminderCompleted:async id=>updateDoc(taskRef(id),{completedAt:Timestamp.now(),archivedAt:null,
-      "reminder.enabled":false,"reminder.snoozedUntil":null})
+    tick,syncNative,scheduleNativeTask,snoozeReminder,markReminderCompleted
   };
 }
