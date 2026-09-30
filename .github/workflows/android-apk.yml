@@ -1,0 +1,75 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/android-apk.yml"
+      - "package.json"
+      - "capacitor.config.json"
+      - "scripts/**"
+      - "index.html"
+      - "app.js"
+      - "reminders.js"
+      - "firebase-config.js"
+      - "style.css"
+      - "manifest.webmanifest"
+      - "service-worker.js"
+      - "icon.svg"
+      - "header-logo.svg"
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Prepare web app
+        run: npm run prepare:android
+
+      - name: Create Android project
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Add Android permissions
+        run: node scripts/patch-android.mjs
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Package APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk My-Tasks-v2.2.0-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: My-Tasks-v2.2.0-Android
+          path: My-Tasks-v2.2.0-debug.apk
+          if-no-files-found: error
+          retention-days: 30
