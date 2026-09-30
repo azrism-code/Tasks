@@ -63,6 +63,10 @@ export function scheduleReminder(task) {
 
 export function createReminderService({db, taskRef, getTasks, onError}) {
   let timer=null, busy=false, nativeInitialized=false;
+  const withTimeout=(promise,ms=5000,label="פעולת Android")=>Promise.race([
+    promise,
+    new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${label} לא הגיבה בזמן`)),ms))
+  ]);
   const nativePlugin=()=>window.MyTasksNative?.isNative ? window.MyTasksNative.LocalNotifications : null;
   const settingsPlugin=()=>window.MyTasksNative?.isNative ? window.MyTasksNative.NotificationSettings : null;
   const notificationId=id=>{
@@ -74,19 +78,19 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
     const plugin=nativePlugin();
     if(!plugin || nativeInitialized)return plugin;
     nativeInitialized=true;
-    await plugin.registerActionTypes({types:[{id:"TASK_REMINDER",actions:[
+    try{await withTimeout(plugin.registerActionTypes({types:[{id:"TASK_REMINDER",actions:[
       {id:"done",title:"✅ בוצע"},
       {id:"snooze10",title:"⏰ דחה 10 דקות"},
       {id:"snooze60",title:"⏰ דחה שעה"}
-    ]}]});
+    ]}]}),4000,"אתחול ההתראות");}catch(error){console.debug(error);}
     for(const channel of [
       {id:"tasks-normal",name:"תזכורות רגילות",description:"תזכורות רגילות של My Tasks",importance:3,vibration:false},
       {id:"tasks-important",name:"תזכורות חשובות",description:"תזכורות חשובות עם צליל ורטט",importance:4,vibration:true},
       {id:"tasks-critical",name:"תזכורות קריטיות",description:"תזכורות דחופות של My Tasks",importance:5,vibration:true}
     ]) {
-      try{await plugin.createChannel(channel);}catch(error){console.debug(error);}
+      try{await withTimeout(plugin.createChannel(channel),3000,"יצירת ערוץ התראות");}catch(error){console.debug(error);}
     }
-    await plugin.addListener("localNotificationActionPerformed",async event=>{
+    try{await withTimeout(plugin.addListener("localNotificationActionPerformed",async event=>{
       try{
         const id=event.notification?.extra?.taskId;
         if(!id)return;
@@ -95,23 +99,25 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
         if(event.actionId==="snooze60")await snoozeReminder(id,60);
         await syncNative();
       }catch(error){onError(error);}
-    });
+    }),3000,"חיבור פעולות ההתראה");}catch(error){console.debug(error);}
     return plugin;
   }
   async function status() {
-    const plugin=await initNative();
+    const plugin=nativePlugin();
     if(plugin){
-      const display=await plugin.checkPermissions();
+      initNative().catch(error=>console.debug(error));
+      const display=await withTimeout(plugin.checkPermissions(),4000,"בדיקת הרשאת ההתראות");
       let exact={exact_alarm:"unknown"};
-      try{exact=await plugin.checkExactNotificationSetting();}catch(error){console.debug(error);}
-      const pending=await plugin.getPending().catch(()=>({notifications:[]}));
+      try{exact=await withTimeout(plugin.checkExactNotificationSetting(),4000,"בדיקת התזמון המדויק");}catch(error){console.debug(error);}
+      const pending=await withTimeout(plugin.getPending(),4000,"בדיקת התזכורות").catch(()=>({notifications:[]}));
       return {native:true,display:display.display,exact:exact.exact_alarm,pending:pending.notifications?.length||0};
     }
     return {native:false,display:("Notification" in window)?Notification.permission:"unsupported",exact:"not-applicable",pending:0};
   }
   async function permission(requestExact=true) {
-    const plugin=await initNative();
+    const plugin=nativePlugin();
     if(plugin){
+      initNative().catch(error=>console.debug(error));
       let status=await plugin.checkPermissions();
       if(status.display!=="granted")status=await plugin.requestPermissions();
       if(status.display!=="granted")return false;
