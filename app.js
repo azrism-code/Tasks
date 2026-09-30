@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.1.1";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.1.1";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.2.0";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.2.0";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -433,7 +433,8 @@ function openTask(task=null,presetDate="") {
 }
 async function createTask(value,dueDate,dueTime,reminder){
   const maxOrder=Math.max(0,...state.tasks.filter(x=>x.categoryId===state.selected&&!x.completedAt).map(x=>x.order||0));
-  await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,createdAt:serverTimestamp(),completedAt:null,archivedAt:null});
+  const created=await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,createdAt:serverTimestamp(),completedAt:null,archivedAt:null});
+  return created.id;
 }
 
 function updateReminderFields(){
@@ -504,8 +505,10 @@ async function saveTask(event) {
       await reminderService.permission();
       registerPushSubscription().catch(console.error);
     }
+    let savedId=state.editingTask?.id||null;
     if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,updatedAt:serverTimestamp()});
-    else await createTask(value,dueDate,dueTime,reminder);
+    else savedId=await createTask(value,dueDate,dueTime,reminder);
+    if(savedId)await reminderService.scheduleNativeTask({id:savedId,text:value,reminder,completedAt:null,archivedAt:null});
     $("#taskDialog").close(); toast(t("saved"));
     offerCalendarDownload(value,dueDate,dueTime);
     if(reminder.enabled && (!("Notification" in window) || Notification.permission!=="granted"))toast("התזכורת נשמרה, אך התראות אינן מורשות במכשיר זה");
