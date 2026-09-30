@@ -1,0 +1,11 @@
+{
+  "appId": "com.azri.mytasks",
+  "appName": "My Tasks",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}
