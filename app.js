@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.2";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.2";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.3";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.3";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -737,6 +737,16 @@ $("#reminderEnabled").onchange=updateReminderFields;$("#reminderRepeat").onchang
 $$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
 $$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
 document.addEventListener("click",event=>{if(!event.target.closest(".task-actions")&&!event.target.closest("#categoryMenuBtn")&&!event.target.closest("#appMenu"))closeMenus();});
-if("serviceWorker" in navigator)navigator.serviceWorker.register("./service-worker.js?v=2.4.2");
+if("serviceWorker" in navigator){
+  let reloadingForUpdate=false;
+  navigator.serviceWorker.addEventListener("controllerchange",()=>{
+    if(reloadingForUpdate)return;
+    reloadingForUpdate=true;
+    location.reload();
+  });
+  navigator.serviceWorker.register("./service-worker.js?v=2.4.3",{updateViaCache:"none"})
+    .then(registration=>registration.update())
+    .catch(console.error);
+}
 applySettings();
 render();

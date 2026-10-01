@@ -12,7 +12,7 @@
 - The selected content language controls task alignment, typing direction and speech-recognition language.
 - The application interface itself remains in Hebrew.
 
-## Completed in v2.4.2
+## Completed in v2.4.3
 
 - Modern segmented settings controls instead of dropdowns.
 - Notification permission status and first-run explanation.

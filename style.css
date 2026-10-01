@@ -57,7 +57,7 @@ dialog{width:min(500px,calc(100% - 32px));border:1px solid var(--line);border-ra
 .category-count{display:inline-grid;place-items:center;min-width:21px;height:21px;padding:0 6px;border-radius:99px;background:#e8edf5;color:#68768b;font-size:.72rem;font-weight:750}
 .category-tab.active .category-count{background:#dce9ff;color:var(--blue)}
 @media(max-width:760px){
-  .mobile-header{position:relative;justify-content:center}
+  .mobile-header{position:sticky;top:0;z-index:40;justify-content:center}
   .mobile-header .app-menu-btn{position:absolute;right:10px;top:10px}
   .view-title{font-size:1.25rem;margin:0 2px 8px}
 }

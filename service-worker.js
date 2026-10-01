@@ -1,14 +1,14 @@
-const CACHE = "azri-tasks-v37";
+const CACHE = "azri-tasks-v38";
 const FILES = [
   "./",
   "./index.html",
-  "./style.css?v=2.4.2",
-  "./app.js?v=2.4.2",
-  "./reminders.js?v=2.4.2",
-  "./firebase-config.js?v=2.4.2",
-  "./manifest.webmanifest?v=2.4.2",
-  "./icon.svg?v=2.4.2",
-  "./header-logo.svg?v=2.4.2"
+  "./style.css?v=2.4.3",
+  "./app.js?v=2.4.3",
+  "./reminders.js?v=2.4.3",
+  "./firebase-config.js?v=2.4.3",
+  "./manifest.webmanifest?v=2.4.3",
+  "./icon.svg?v=2.4.3",
+  "./header-logo.svg?v=2.4.3"
 ];
 
 self.addEventListener("install", event => {
@@ -18,12 +18,11 @@ self.addEventListener("install", event => {
 
 self.addEventListener("activate", event => {
   event.waitUntil(
-    Promise.all([
-      caches.keys().then(keys =>
-        Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key)))
-      ),
-      self.clients.claim()
-    ])
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: "window", includeUncontrolled: true }))
+      .then(clients => Promise.all(clients.map(client => client.navigate(client.url))))
   );
 });
 
