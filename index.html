@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1E3A5F">
   <meta name="description" content="My Tasks">
-  <link rel="manifest" href="./manifest.webmanifest?v=2.4.4">
-  <link rel="icon" href="./icon.svg?v=2.4.4" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=2.4.4">
-  <title>My Tasks v2.4.4</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=2.4.5">
+  <link rel="icon" href="./icon.svg?v=2.4.5" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=2.4.5">
+  <title>My Tasks v2.4.5</title>
 </head>
 <body>
   <div id="login" class="login-screen">
     <div class="login-card">
-      <img class="brand-logo" src="./header-logo.svg?v=2.4.4" alt="My Tasks">
+      <img class="brand-logo" src="./header-logo.svg?v=2.4.5" alt="My Tasks">
       <h1>My Tasks</h1>
       <p>המשימות שלך, פשוט ובכל מקום.</p>
       <button id="loginBtn" class="primary-btn">התחברות עם Google</button>
@@ -22,7 +22,7 @@
 
   <main id="app" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.4.4" alt=""><span>My Tasks</span><small class="version">v2.4.4</small></div>
+      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.4.5" alt=""><span>My Tasks</span><small class="version">v2.4.5</small></div>
       <p class="side-label" data-i18n="areas">Areas</p>
       <nav class="area-nav">
         <button data-area="work" class="active"><span aria-hidden="true">💼</span> <span data-i18n="work">Work</span><b id="workCount">0</b></button>
@@ -34,7 +34,7 @@
 
     <section class="workspace">
       <header class="mobile-header">
-        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.4.4" alt=""><span>My Tasks</span><small class="version">v2.4.4</small></div>
+        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.4.5" alt=""><span>My Tasks</span><small class="version">v2.4.5</small></div>
         <button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button>
       </header>
       <div class="content">
@@ -45,13 +45,9 @@
             <button data-area="work" class="active"><span aria-hidden="true">💼</span> <span data-i18n="work">Work</span></button>
             <button data-area="private"><span aria-hidden="true">⌂</span> <span data-i18n="private">Private</span></button>
           </div>
-          <div class="category-strip">
-            <div id="categoryTabs" class="category-tabs"></div>
-            <button id="moreCategoriesBtn" class="category-more hidden" type="button" aria-label="כל תתי הקטגוריות">•••</button>
-            <div id="categoryPicker" class="category-picker hidden"></div>
-          </div>
+          <div class="category-strip"><div id="categoryTabs" class="category-tabs"></div></div>
           <div class="list-heading compact-list-heading">
-            <div class="list-actions"><button id="addTaskTop" class="primary-btn">＋ <span data-i18n="addTask">Add task</span></button><button id="categoryMenuBtn" class="icon-btn" aria-label="List options">•••</button></div>
+            <div class="list-actions"><button id="addTaskTop" class="primary-btn">＋ <span data-i18n="addTask">Add task</span></button></div>
           </div>
           <section id="taskList" class="task-list"></section>
         </div>
@@ -70,6 +66,7 @@
     <button data-menu-view="tasks">⌂ <span data-i18n="tasks">Tasks</span></button>
     <button data-menu-view="history">↶ <span data-i18n="history">History</span></button>
     <button data-menu-view="calendar">▦ <span>יומן</span></button>
+    <button id="menuCategoriesBtn">☷ <span>ניהול תתי־קטגוריות</span></button>
     <button id="menuSettingsBtn">⚙ <span>הגדרות</span></button>
     <button id="menuLogoutBtn">↪ <span>יציאה</span></button>
   </div>
@@ -103,6 +100,14 @@
       <input id="categoryName" dir="auto" required>
       <footer><button type="button" data-close-dialog="categoryDialog" class="secondary-btn" data-i18n="cancel">Cancel</button><button type="submit" class="primary-btn" data-i18n="save">Save</button></footer>
     </form>
+  </dialog>
+
+  <dialog id="manageCategoriesDialog" class="manage-categories-dialog">
+    <div class="manage-categories-panel">
+      <header><div><h2>ניהול תתי־קטגוריות</h2><p id="manageCategoriesArea"></p></div><button type="button" data-close-dialog="manageCategoriesDialog" class="close-btn">×</button></header>
+      <div id="manageCategoriesList" class="manage-categories-list"></div>
+      <footer><button id="manageAddCategoryBtn" type="button" class="primary-btn">＋ הוספת תת־קטגוריה</button><button type="button" data-close-dialog="manageCategoriesDialog" class="secondary-btn">סגירה</button></footer>
+    </div>
   </dialog>
 
   <dialog id="moveDialog">
@@ -140,6 +145,6 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="./app.js?v=2.4.4"></script>
+  <script type="module" src="./app.js?v=2.4.5"></script>
 </body>
 </html>

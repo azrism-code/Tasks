@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.4";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.4";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.5";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.5";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -233,7 +233,7 @@ function selectArea(area) {
   if(state.selected)localStorage.setItem(`tasks-selected-${area}`,state.selected);
   closeMenus(); render();
 }
-function closeMenus(){ $$(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); $("#categoryPicker").classList.add("hidden"); }
+function closeMenus(){ $$(".action-menu,.category-menu").forEach(el=>el.remove()); $("#appMenu").classList.add("hidden"); }
 
 function render() {
   applySettings();
@@ -323,26 +323,18 @@ function renderCategories() {
   const direction=contentDirection();
   const countFor=category=>state.tasks.filter(task=>task.categoryId===category.id&&(state.view==="history"?isArchived(task):!isArchived(task))).length;
   $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}" dir="${direction}"><span class="category-drag" aria-label="שינוי סדר">⠿</span><span class="category-name">${escapeHtml(c.name)}</span><span class="category-count">${countFor(c)}</span></button>`).join("")+`<button id="addCategory" class="category-add" aria-label="הוספת תת קטגוריה">＋</button>`;
-  $("#categoryPicker").innerHTML=categories.map(c=>`<button class="${c.id===state.selected?"active":""}" data-pick-category="${c.id}" dir="${direction}"><span>${escapeHtml(c.name)}</span><b>${countFor(c)}</b></button>`).join("");
   $$("[data-category]").forEach(el=>el.onclick=()=>{if(!state.suppressCategoryClick)selectCategory(el.dataset.category);});
-  $$("[data-pick-category]").forEach(el=>el.onclick=()=>selectCategory(el.dataset.pickCategory));
   $("#addCategory").onclick=()=>openCategory();
   initCategoryDragging();
   requestAnimationFrame(updateCategoryOverflow);
 }
 
 function updateCategoryOverflow(){
-  const tabs=$("#categoryTabs"),button=$("#moreCategoriesBtn"),active=tabs.querySelector(".category-tab.active");
+  const tabs=$("#categoryTabs"),active=tabs.querySelector(".category-tab.active");
   tabs.scrollTop=0;
   const overflowing=tabs.scrollHeight>tabs.clientHeight+2;
   tabs.classList.toggle("has-overflow",overflowing);
-  button.classList.toggle("hidden",!overflowing);
   if(overflowing&&active&&active.offsetTop+active.offsetHeight>tabs.clientHeight)tabs.scrollTop=Math.max(0,active.offsetTop-(tabs.clientHeight-active.offsetHeight));
-}
-
-function toggleCategoryPicker(event){
-  event.stopPropagation();
-  $("#categoryPicker").classList.toggle("hidden");
 }
 
 function initCategoryDragging(){
@@ -704,12 +696,48 @@ navigator.serviceWorker?.addEventListener("message",event=>{
   handleNotificationRoute();
 });
 
-function openCategoryMenu() {
-  const category=state.categories.find(c=>c.id===state.selected);if(!category)return;closeMenus();
-  const wrap=$("#categoryMenuBtn").parentElement;wrap.style.position="relative";
-  const menu=document.createElement("div");menu.className="category-menu";menu.innerHTML=`<button data-cat="edit">✎ ${t("edit")}</button><button data-cat="delete" class="delete">♲ ${t("delete")}</button>`;wrap.append(menu);
-  menu.querySelector('[data-cat="edit"]').onclick=()=>openCategory(category);
-  menu.querySelector('[data-cat="delete"]').onclick=()=>openConfirm("deleteList",category);
+function renderManageCategories(){
+  const categories=state.categories.filter(c=>c.area===state.area);
+  $("#manageCategoriesArea").textContent=state.area==="private"?"פרטי":"עבודה";
+  $("#manageCategoriesList").innerHTML=categories.length?categories.map(category=>`<div class="manage-category-row ${category.id===state.selected?"selected":""}" data-manage-category="${category.id}">
+    <button class="manage-category-drag" type="button" aria-label="שינוי סדר">⠿</button>
+    <button class="manage-category-select" type="button" dir="${contentDirection()}">${escapeHtml(category.name)}${category.id===state.selected?'<small>נבחרה</small>':''}</button>
+    <button class="manage-category-edit" type="button" aria-label="שינוי שם">✎</button>
+    <button class="manage-category-delete" type="button" aria-label="מחיקה">♲</button>
+  </div>`).join(""):'<div class="empty"><b>אין תתי־קטגוריות</b></div>';
+  $$("[data-manage-category]").forEach(row=>{
+    const category=state.categories.find(c=>c.id===row.dataset.manageCategory);
+    row.querySelector(".manage-category-select").onclick=()=>{$("#manageCategoriesDialog").close();selectCategory(category.id);};
+    row.querySelector(".manage-category-edit").onclick=()=>{$("#manageCategoriesDialog").close();openCategory(category);};
+    row.querySelector(".manage-category-delete").onclick=()=>{$("#manageCategoriesDialog").close();openConfirm("deleteList",category);};
+  });
+  initManageCategoryDragging();
+}
+
+function initManageCategoryDragging(){
+  $$(".manage-category-drag").forEach(handle=>handle.onpointerdown=event=>{
+    event.preventDefault();
+    const row=handle.closest(".manage-category-row"),list=$("#manageCategoriesList");
+    let moved=false;handle.setPointerCapture(event.pointerId);row.classList.add("dragging");
+    handle.onpointermove=moveEvent=>{
+      moveEvent.preventDefault();moved=true;
+      const target=document.elementFromPoint(moveEvent.clientX,moveEvent.clientY)?.closest(".manage-category-row");
+      if(!target||target===row||target.parentElement!==list)return;
+      const box=target.getBoundingClientRect();list.insertBefore(row,moveEvent.clientY<box.top+box.height/2?target:target.nextSibling);
+    };
+    const finish=async()=>{
+      row.classList.remove("dragging");handle.onpointermove=null;handle.onpointerup=null;handle.onpointercancel=null;
+      if(moved){
+        const ids=$$("#manageCategoriesList [data-manage-category]").map(item=>item.dataset.manageCategory);
+        await safe(async()=>{const batch=writeBatch(db);ids.forEach((id,index)=>batch.update(userDoc("categories",id),{order:(index+1)*1000}));await batch.commit();});
+      }
+    };
+    handle.onpointerup=finish;handle.onpointercancel=finish;
+  });
+}
+
+function openManageCategories(){
+  closeMenus();renderManageCategories();$("#manageCategoriesDialog").showModal();
 }
 
 initVoiceInput();
@@ -718,12 +746,13 @@ $("#loginBtn").onclick=login;
 $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
 $$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
 $("#menuSettingsBtn").onclick=openSettings;
+$("#menuCategoriesBtn").onclick=openManageCategories;
 $("#requestNotificationPermissionBtn").onclick=requestNotificationPermission;
 $("#testNotificationBtn").onclick=testNotification;
 $("#openNotificationSettingsBtn").onclick=openNotificationSettings;
 $("#openExactAlarmSettingsBtn").onclick=openExactAlarmSettings;
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
-$("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#categoryMenuBtn").onclick=openCategoryMenu;$("#moreCategoriesBtn").onclick=toggleCategoryPicker;
+$("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#manageAddCategoryBtn").onclick=()=>{$("#manageCategoriesDialog").close();openCategory();};
 $("#calendarPrev").onclick=()=>shiftCalendarMonth(-1);$("#calendarNext").onclick=()=>shiftCalendarMonth(1);$("#calendarAddTask").onclick=openTaskForDate;
 $("#taskText").oninput=event=>event.target.dir=contentDirection();
 $("#categoryName").oninput=event=>event.target.dir=contentDirection();
@@ -732,7 +761,7 @@ $("#taskDate").oninput=updateScheduleSummary;$("#taskTime").oninput=updateSchedu
 $("#reminderEnabled").onchange=updateReminderFields;$("#reminderRepeat").onchange=updateReminderFields;
 $$("[data-close-dialog]").forEach(button=>button.onclick=()=>$("#"+button.dataset.closeDialog).close());
 $$("dialog").forEach(dialog=>dialog.addEventListener("click",event=>{if(event.target===dialog)dialog.close();}));
-document.addEventListener("click",event=>{if(!event.target.closest(".task-actions")&&!event.target.closest("#categoryMenuBtn")&&!event.target.closest("#appMenu"))closeMenus();});
+document.addEventListener("click",event=>{if(!event.target.closest(".task-actions")&&!event.target.closest("#appMenu"))closeMenus();});
 if("serviceWorker" in navigator){
   let reloadingForUpdate=false;
   navigator.serviceWorker.addEventListener("controllerchange",()=>{
@@ -740,7 +769,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.4.4",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.4.5",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
