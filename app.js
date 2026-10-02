@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.5";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.5";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.6";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.6";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -54,7 +54,7 @@ function loadSettings(){
   }catch{return structuredClone(defaultSettings);}
 }
 const todayKey=new Date().toISOString().slice(0,10);
-const state = { user:null, language:"he", settings:loadSettings(), notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
+const state = { user:null, language:"he", settings:loadSettings(), notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, reopenCategoryManager:false, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -621,6 +621,7 @@ async function saveCategory(event) {
     if(state.editingCategory) await updateDoc(userDoc("categories",state.editingCategory.id),{name});
     else { const ref=await addDoc(userCollection("categories"),{name,area:state.area,order:Date.now(),createdAt:serverTimestamp()});state.selected=ref.id; }
     $("#categoryDialog").close();toast(t("saved"));
+    if(state.reopenCategoryManager){state.reopenCategoryManager=false;setTimeout(openManageCategories,180);}
   });
 }
 
@@ -657,10 +658,11 @@ async function confirmAction(event) {
     if(type==="restore")await updateDoc(userDoc("tasks",item.id),{completedAt:null,archivedAt:null});
     if(type==="delete")await deleteDoc(userDoc("tasks",item.id));
     if(type==="deleteList"){
-      if(state.tasks.some(task=>task.categoryId===item.id)){toast(t("listNotEmpty"));$("#confirmDialog").close();return;}
+      if(state.tasks.some(task=>task.categoryId===item.id)){toast(t("listNotEmpty"));$("#confirmDialog").close();if(state.reopenCategoryManager){state.reopenCategoryManager=false;setTimeout(openManageCategories,120);}return;}
       await deleteDoc(userDoc("categories",item.id));state.selected=state.categories.find(c=>c.area===state.area&&c.id!==item.id)?.id||"";if(state.selected)localStorage.setItem(`tasks-selected-${state.area}`,state.selected);
     }
     $("#confirmDialog").close();
+    if(type==="deleteList"&&state.reopenCategoryManager){state.reopenCategoryManager=false;setTimeout(openManageCategories,180);}
   });
 }
 
@@ -703,13 +705,13 @@ function renderManageCategories(){
     <button class="manage-category-drag" type="button" aria-label="שינוי סדר">⠿</button>
     <button class="manage-category-select" type="button" dir="${contentDirection()}">${escapeHtml(category.name)}${category.id===state.selected?'<small>נבחרה</small>':''}</button>
     <button class="manage-category-edit" type="button" aria-label="שינוי שם">✎</button>
-    <button class="manage-category-delete" type="button" aria-label="מחיקה">♲</button>
+    <button class="manage-category-delete" type="button" aria-label="מחיקה">🗑️</button>
   </div>`).join(""):'<div class="empty"><b>אין תתי־קטגוריות</b></div>';
   $$("[data-manage-category]").forEach(row=>{
     const category=state.categories.find(c=>c.id===row.dataset.manageCategory);
-    row.querySelector(".manage-category-select").onclick=()=>{$("#manageCategoriesDialog").close();selectCategory(category.id);};
-    row.querySelector(".manage-category-edit").onclick=()=>{$("#manageCategoriesDialog").close();openCategory(category);};
-    row.querySelector(".manage-category-delete").onclick=()=>{$("#manageCategoriesDialog").close();openConfirm("deleteList",category);};
+    row.querySelector(".manage-category-select").onclick=()=>{selectCategory(category.id);renderManageCategories();};
+    row.querySelector(".manage-category-edit").onclick=()=>{state.reopenCategoryManager=true;$("#manageCategoriesDialog").close();openCategory(category);};
+    row.querySelector(".manage-category-delete").onclick=()=>{state.reopenCategoryManager=true;$("#manageCategoriesDialog").close();openConfirm("deleteList",category);};
   });
   initManageCategoryDragging();
 }
@@ -721,9 +723,9 @@ function initManageCategoryDragging(){
     let moved=false;handle.setPointerCapture(event.pointerId);row.classList.add("dragging");
     handle.onpointermove=moveEvent=>{
       moveEvent.preventDefault();moved=true;
-      const target=document.elementFromPoint(moveEvent.clientX,moveEvent.clientY)?.closest(".manage-category-row");
-      if(!target||target===row||target.parentElement!==list)return;
-      const box=target.getBoundingClientRect();list.insertBefore(row,moveEvent.clientY<box.top+box.height/2?target:target.nextSibling);
+      const siblings=$$("#manageCategoriesList .manage-category-row").filter(item=>item!==row);
+      const target=siblings.find(item=>moveEvent.clientY<item.getBoundingClientRect().top+item.getBoundingClientRect().height/2);
+      list.insertBefore(row,target||null);
     };
     const finish=async()=>{
       row.classList.remove("dragging");handle.onpointermove=null;handle.onpointerup=null;handle.onpointercancel=null;
@@ -752,7 +754,7 @@ $("#testNotificationBtn").onclick=testNotification;
 $("#openNotificationSettingsBtn").onclick=openNotificationSettings;
 $("#openExactAlarmSettingsBtn").onclick=openExactAlarmSettings;
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
-$("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#manageAddCategoryBtn").onclick=()=>{$("#manageCategoriesDialog").close();openCategory();};
+$("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#manageAddCategoryBtn").onclick=()=>{state.reopenCategoryManager=true;$("#manageCategoriesDialog").close();openCategory();};
 $("#calendarPrev").onclick=()=>shiftCalendarMonth(-1);$("#calendarNext").onclick=()=>shiftCalendarMonth(1);$("#calendarAddTask").onclick=openTaskForDate;
 $("#taskText").oninput=event=>event.target.dir=contentDirection();
 $("#categoryName").oninput=event=>event.target.dir=contentDirection();
@@ -769,7 +771,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.4.5",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.4.6",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }

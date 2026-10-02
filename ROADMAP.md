@@ -12,7 +12,7 @@
 - The selected content language controls task alignment, typing direction and speech-recognition language.
 - The application interface itself remains in Hebrew.
 
-## Completed in v2.4.5
+## Completed in v2.4.6
 
 - Modern segmented settings controls instead of dropdowns.
 - Notification permission status and first-run explanation.
@@ -23,6 +23,8 @@
 - Remove the duplicated selected-subcategory heading and task count.
 - Strengthen the selected subcategory styling in light and dark modes.
 - Consolidate subcategory actions into a dedicated management dialog opened from the main menu.
+- Keep subcategory management open across selection, edit, add and delete actions.
+- Fix touch reordering and improve dialog spacing and action icons.
 
 ### Suggested settings to consider
 
