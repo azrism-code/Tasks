@@ -12,7 +12,7 @@
 - The selected content language controls task alignment, typing direction and speech-recognition language.
 - The application interface itself remains in Hebrew.
 
-## Completed in v2.4.3
+## Completed in v2.4.4
 
 - Modern segmented settings controls instead of dropdowns.
 - Notification permission status and first-run explanation.
@@ -20,6 +20,8 @@
 - Android pending-notification verification and direct settings shortcuts.
 - Android status-bar safe-area handling.
 - Dark-mode menu and completion-control visibility fixes.
+- Remove the duplicated selected-subcategory heading and task count.
+- Strengthen the selected subcategory styling in light and dark modes.
 
 ### Suggested settings to consider
 

@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.3";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.3";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.4";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.4";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -379,16 +379,12 @@ function initCategoryDragging(){
 }
 
 function renderTasks() {
-  const category=state.categories.find(c=>c.id===state.selected);
-  $("#categoryTitle").textContent=category?.name || "";
-  $("#categoryTitle").dir=contentDirection();
   const items=state.tasks.filter(task=>task.area===state.area&&task.categoryId===state.selected&&(state.view==="history"?isArchived(task):!isArchived(task))).sort((a,b)=>{
     if(state.view==="history")return (b.archivedAt?.seconds||b.completedAt?.seconds||0)-(a.archivedAt?.seconds||a.completedAt?.seconds||0);
     if(!!a.completedAt!==!!b.completedAt)return a.completedAt?1:-1;
     if(a.completedAt&&b.completedAt)return (a.completedAt?.seconds||0)-(b.completedAt?.seconds||0);
     return (a.order??-(a.createdAt?.seconds||0))-(b.order??-(b.createdAt?.seconds||0));
   });
-  $("#taskCount").textContent=`${items.length} ${t("taskCount")}`;
   $("#taskList").innerHTML=items.length?items.map(task=>`
     <article class="task-card ${state.view==="tasks"?"active-task":"history-task"} ${task.completedAt?"completed-task":""} ${task.urgent?"urgent":""}" data-task-id="${task.id}">
       ${state.view==="tasks"?`<button class="drag-handle" data-drag="${task.id}" aria-label="שינוי סדר">⠿</button>`:""}
@@ -744,7 +740,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.4.3",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.4.4",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }

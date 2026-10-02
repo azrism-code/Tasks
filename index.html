@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1E3A5F">
   <meta name="description" content="My Tasks">
-  <link rel="manifest" href="./manifest.webmanifest?v=2.4.3">
-  <link rel="icon" href="./icon.svg?v=2.4.3" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=2.4.3">
-  <title>My Tasks v2.4.3</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=2.4.4">
+  <link rel="icon" href="./icon.svg?v=2.4.4" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=2.4.4">
+  <title>My Tasks v2.4.4</title>
 </head>
 <body>
   <div id="login" class="login-screen">
     <div class="login-card">
-      <img class="brand-logo" src="./header-logo.svg?v=2.4.3" alt="My Tasks">
+      <img class="brand-logo" src="./header-logo.svg?v=2.4.4" alt="My Tasks">
       <h1>My Tasks</h1>
       <p>המשימות שלך, פשוט ובכל מקום.</p>
       <button id="loginBtn" class="primary-btn">התחברות עם Google</button>
@@ -22,7 +22,7 @@
 
   <main id="app" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.4.3" alt=""><span>My Tasks</span><small class="version">v2.4.3</small></div>
+      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.4.4" alt=""><span>My Tasks</span><small class="version">v2.4.4</small></div>
       <p class="side-label" data-i18n="areas">Areas</p>
       <nav class="area-nav">
         <button data-area="work" class="active"><span aria-hidden="true">💼</span> <span data-i18n="work">Work</span><b id="workCount">0</b></button>
@@ -34,7 +34,7 @@
 
     <section class="workspace">
       <header class="mobile-header">
-        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.4.3" alt=""><span>My Tasks</span><small class="version">v2.4.3</small></div>
+        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.4.4" alt=""><span>My Tasks</span><small class="version">v2.4.4</small></div>
         <button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button>
       </header>
       <div class="content">
@@ -50,8 +50,7 @@
             <button id="moreCategoriesBtn" class="category-more hidden" type="button" aria-label="כל תתי הקטגוריות">•••</button>
             <div id="categoryPicker" class="category-picker hidden"></div>
           </div>
-          <div class="list-heading">
-            <div><h2 id="categoryTitle"></h2><span id="taskCount"></span></div>
+          <div class="list-heading compact-list-heading">
             <div class="list-actions"><button id="addTaskTop" class="primary-btn">＋ <span data-i18n="addTask">Add task</span></button><button id="categoryMenuBtn" class="icon-btn" aria-label="List options">•••</button></div>
           </div>
           <section id="taskList" class="task-list"></section>
@@ -141,6 +140,6 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="./app.js?v=2.4.3"></script>
+  <script type="module" src="./app.js?v=2.4.4"></script>
 </body>
 </html>
