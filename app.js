@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.6";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.6";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.7";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.7";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -319,13 +319,12 @@ function addToPersonalCalendar(task){
 }
 
 function renderCategories() {
-  const categories=state.categories.filter(c=>c.area===state.area);
+  const categories=state.categories.filter(c=>c.area===state.area).sort((a,b)=>(a.order||0)-(b.order||0));
   const direction=contentDirection();
   const countFor=category=>state.tasks.filter(task=>task.categoryId===category.id&&(state.view==="history"?isArchived(task):!isArchived(task))).length;
-  $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}" dir="${direction}"><span class="category-drag" aria-label="שינוי סדר">⠿</span><span class="category-name">${escapeHtml(c.name)}</span><span class="category-count">${countFor(c)}</span></button>`).join("")+`<button id="addCategory" class="category-add" aria-label="הוספת תת קטגוריה">＋</button>`;
+  $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}" dir="${direction}"><span class="category-name">${escapeHtml(c.name)}</span><span class="category-count">${countFor(c)}</span></button>`).join("")+`<button id="addCategory" class="category-add" aria-label="הוספת תת קטגוריה">＋</button>`;
   $$("[data-category]").forEach(el=>el.onclick=()=>{if(!state.suppressCategoryClick)selectCategory(el.dataset.category);});
   $("#addCategory").onclick=()=>openCategory();
-  initCategoryDragging();
   requestAnimationFrame(updateCategoryOverflow);
 }
 
@@ -333,41 +332,7 @@ function updateCategoryOverflow(){
   const tabs=$("#categoryTabs"),active=tabs.querySelector(".category-tab.active");
   tabs.scrollTop=0;
   const overflowing=tabs.scrollHeight>tabs.clientHeight+2;
-  tabs.classList.toggle("has-overflow",overflowing);
   if(overflowing&&active&&active.offsetTop+active.offsetHeight>tabs.clientHeight)tabs.scrollTop=Math.max(0,active.offsetTop-(tabs.clientHeight-active.offsetHeight));
-}
-
-function initCategoryDragging(){
-  $$(".category-drag").forEach(handle=>handle.onpointerdown=event=>{
-    event.preventDefault();event.stopPropagation();
-    const tab=handle.closest(".category-tab"),tabs=$("#categoryTabs"),rect=tab.getBoundingClientRect();
-    const clone=tab.cloneNode(true);
-    clone.classList.add("category-drag-clone");
-    Object.assign(clone.style,{position:"fixed",left:`${rect.left}px`,top:`${rect.top}px`,width:`${rect.width}px`,height:`${rect.height}px`,pointerEvents:"none",zIndex:"100"});
-    document.body.append(clone);tab.classList.add("category-drag-source");
-    const offsetX=event.clientX-rect.left,offsetY=event.clientY-rect.top,startX=event.clientX,startY=event.clientY;
-    let moved=false;handle.setPointerCapture(event.pointerId);
-    handle.onpointermove=moveEvent=>{
-      moveEvent.preventDefault();
-      if(Math.hypot(moveEvent.clientX-startX,moveEvent.clientY-startY)>5){moved=true;state.suppressCategoryClick=true;}
-      clone.style.left=`${moveEvent.clientX-offsetX}px`;clone.style.top=`${moveEvent.clientY-offsetY}px`;
-      const target=document.elementFromPoint(moveEvent.clientX,moveEvent.clientY)?.closest(".category-tab");
-      if(!moved||!target||target===tab||target.parentElement!==tabs)return;
-      const box=target.getBoundingClientRect(),sameRow=Math.abs(moveEvent.clientY-(box.top+box.height/2))<box.height/2;
-      const before=sameRow?moveEvent.clientX>box.left+box.width/2:moveEvent.clientY<box.top+box.height/2;
-      tabs.insertBefore(tab,before?target:target.nextSibling);
-    };
-    const finish=async()=>{
-      clone.remove();tab.classList.remove("category-drag-source");
-      handle.onpointermove=null;handle.onpointerup=null;handle.onpointercancel=null;
-      if(moved){
-        const ids=$$("#categoryTabs [data-category]").map(item=>item.dataset.category);
-        await safe(async()=>{const batch=writeBatch(db);ids.forEach((id,index)=>batch.update(userDoc("categories",id),{order:(index+1)*1000}));await batch.commit();});
-      }
-      setTimeout(()=>{state.suppressCategoryClick=false;},120);
-    };
-    handle.onpointerup=finish;handle.onpointercancel=finish;
-  });
 }
 
 function renderTasks() {
@@ -699,43 +664,54 @@ navigator.serviceWorker?.addEventListener("message",event=>{
 });
 
 function renderManageCategories(){
-  const categories=state.categories.filter(c=>c.area===state.area);
+  const categories=state.categories.filter(c=>c.area===state.area).sort((a,b)=>(a.order||0)-(b.order||0));
   $("#manageCategoriesArea").textContent=state.area==="private"?"פרטי":"עבודה";
-  $("#manageCategoriesList").innerHTML=categories.length?categories.map(category=>`<div class="manage-category-row ${category.id===state.selected?"selected":""}" data-manage-category="${category.id}">
-    <button class="manage-category-drag" type="button" aria-label="שינוי סדר">⠿</button>
-    <button class="manage-category-select" type="button" dir="${contentDirection()}">${escapeHtml(category.name)}${category.id===state.selected?'<small>נבחרה</small>':''}</button>
+  $("#manageCategoriesList").innerHTML=categories.length?categories.map((category,index)=>`<div class="manage-category-row" data-manage-category="${category.id}">
+    <div class="manage-order-controls"><button type="button" data-manage-move="-1" ${index===0?"disabled":""} aria-label="העלה">▲</button><button type="button" data-manage-move="1" ${index===categories.length-1?"disabled":""} aria-label="הורד">▼</button></div>
+    <span class="manage-category-name" dir="${contentDirection()}">${escapeHtml(category.name)}</span>
     <button class="manage-category-edit" type="button" aria-label="שינוי שם">✎</button>
     <button class="manage-category-delete" type="button" aria-label="מחיקה">🗑️</button>
   </div>`).join(""):'<div class="empty"><b>אין תתי־קטגוריות</b></div>';
   $$("[data-manage-category]").forEach(row=>{
     const category=state.categories.find(c=>c.id===row.dataset.manageCategory);
-    row.querySelector(".manage-category-select").onclick=()=>{selectCategory(category.id);renderManageCategories();};
-    row.querySelector(".manage-category-edit").onclick=()=>{state.reopenCategoryManager=true;$("#manageCategoriesDialog").close();openCategory(category);};
-    row.querySelector(".manage-category-delete").onclick=()=>{state.reopenCategoryManager=true;$("#manageCategoriesDialog").close();openConfirm("deleteList",category);};
+    row.querySelectorAll("[data-manage-move]").forEach(button=>button.onclick=()=>moveManagedCategory(category.id,Number(button.dataset.manageMove)));
+    row.querySelector(".manage-category-edit").onclick=()=>editManagedCategory(row,category);
+    row.querySelector(".manage-category-delete").onclick=()=>deleteManagedCategory(category);
   });
-  initManageCategoryDragging();
 }
 
-function initManageCategoryDragging(){
-  $$(".manage-category-drag").forEach(handle=>handle.onpointerdown=event=>{
-    event.preventDefault();
-    const row=handle.closest(".manage-category-row"),list=$("#manageCategoriesList");
-    let moved=false;handle.setPointerCapture(event.pointerId);row.classList.add("dragging");
-    handle.onpointermove=moveEvent=>{
-      moveEvent.preventDefault();moved=true;
-      const siblings=$$("#manageCategoriesList .manage-category-row").filter(item=>item!==row);
-      const target=siblings.find(item=>moveEvent.clientY<item.getBoundingClientRect().top+item.getBoundingClientRect().height/2);
-      list.insertBefore(row,target||null);
-    };
-    const finish=async()=>{
-      row.classList.remove("dragging");handle.onpointermove=null;handle.onpointerup=null;handle.onpointercancel=null;
-      if(moved){
-        const ids=$$("#manageCategoriesList [data-manage-category]").map(item=>item.dataset.manageCategory);
-        await safe(async()=>{const batch=writeBatch(db);ids.forEach((id,index)=>batch.update(userDoc("categories",id),{order:(index+1)*1000}));await batch.commit();});
-      }
-    };
-    handle.onpointerup=finish;handle.onpointercancel=finish;
-  });
+async function persistManagedCategoryOrder(categories){
+  categories.forEach((category,index)=>category.order=(index+1)*1000);renderManageCategories();renderCategories();
+  await safe(async()=>{const batch=writeBatch(db);categories.forEach(category=>batch.update(userDoc("categories",category.id),{order:category.order}));await batch.commit();});
+}
+
+function moveManagedCategory(id,direction){
+  const categories=state.categories.filter(c=>c.area===state.area).sort((a,b)=>(a.order||0)-(b.order||0)),index=categories.findIndex(c=>c.id===id),target=index+direction;
+  if(index<0||target<0||target>=categories.length)return;
+  categories.splice(target,0,categories.splice(index,1)[0]);persistManagedCategoryOrder(categories);
+}
+
+function editManagedCategory(row,category){
+  row.classList.add("editing");
+  row.innerHTML=`<input class="manage-category-input" value="${escapeHtml(category.name)}" dir="${contentDirection()}"><button class="manage-inline-save primary-btn" type="button">שמירה</button><button class="manage-inline-cancel secondary-btn" type="button">ביטול</button>`;
+  const input=row.querySelector("input");input.focus();input.select();
+  row.querySelector(".manage-inline-cancel").onclick=renderManageCategories;
+  row.querySelector(".manage-inline-save").onclick=async()=>{const name=input.value.trim();if(!name)return;await safe(async()=>{await updateDoc(userDoc("categories",category.id),{name});category.name=name;renderManageCategories();renderCategories();toast(t("saved"));});};
+}
+
+async function deleteManagedCategory(category){
+  if(state.tasks.some(task=>task.categoryId===category.id)){toast(t("listNotEmpty"));return;}
+  if(!confirm(`למחוק את תת־הקטגוריה “${category.name}”?`))return;
+  await safe(async()=>{await deleteDoc(userDoc("categories",category.id));state.categories=state.categories.filter(c=>c.id!==category.id);if(state.selected===category.id){state.selected=state.categories.find(c=>c.area===state.area)?.id||"";if(state.selected)localStorage.setItem(`tasks-selected-${state.area}`,state.selected);}renderManageCategories();render();});
+}
+
+function addManagedCategory(){
+  const list=$("#manageCategoriesList");
+  if(list.querySelector(".manage-category-row.editing"))return;
+  if(list.querySelector(".empty"))list.innerHTML="";
+  const row=document.createElement("div");row.className="manage-category-row editing";row.innerHTML=`<input class="manage-category-input" placeholder="שם תת־קטגוריה" dir="${contentDirection()}"><button class="manage-inline-save primary-btn" type="button">הוספה</button><button class="manage-inline-cancel secondary-btn" type="button">ביטול</button>`;list.append(row);
+  const input=row.querySelector("input");input.focus();row.querySelector(".manage-inline-cancel").onclick=renderManageCategories;
+  row.querySelector(".manage-inline-save").onclick=async()=>{const name=input.value.trim();if(!name)return;await safe(async()=>{const ref=await addDoc(userCollection("categories"),{name,area:state.area,order:Date.now(),createdAt:serverTimestamp()});state.categories.push({id:ref.id,name,area:state.area,order:Date.now()});renderManageCategories();renderCategories();toast(t("saved"));});};
 }
 
 function openManageCategories(){
@@ -754,7 +730,7 @@ $("#testNotificationBtn").onclick=testNotification;
 $("#openNotificationSettingsBtn").onclick=openNotificationSettings;
 $("#openExactAlarmSettingsBtn").onclick=openExactAlarmSettings;
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
-$("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#manageAddCategoryBtn").onclick=()=>{state.reopenCategoryManager=true;$("#manageCategoriesDialog").close();openCategory();};
+$("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#manageAddCategoryBtn").onclick=addManagedCategory;
 $("#calendarPrev").onclick=()=>shiftCalendarMonth(-1);$("#calendarNext").onclick=()=>shiftCalendarMonth(1);$("#calendarAddTask").onclick=openTaskForDate;
 $("#taskText").oninput=event=>event.target.dir=contentDirection();
 $("#categoryName").oninput=event=>event.target.dir=contentDirection();
@@ -771,7 +747,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.4.6",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.4.7",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
