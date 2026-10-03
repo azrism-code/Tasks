@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.7";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.7";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.8";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.8";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -322,9 +322,8 @@ function renderCategories() {
   const categories=state.categories.filter(c=>c.area===state.area).sort((a,b)=>(a.order||0)-(b.order||0));
   const direction=contentDirection();
   const countFor=category=>state.tasks.filter(task=>task.categoryId===category.id&&(state.view==="history"?isArchived(task):!isArchived(task))).length;
-  $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}" dir="${direction}"><span class="category-name">${escapeHtml(c.name)}</span><span class="category-count">${countFor(c)}</span></button>`).join("")+`<button id="addCategory" class="category-add" aria-label="הוספת תת קטגוריה">＋</button>`;
+  $("#categoryTabs").innerHTML=categories.map(c=>`<button class="category-tab ${c.id===state.selected?"active":""}" data-category="${c.id}" dir="${direction}"><span class="category-name">${escapeHtml(c.name)}</span><span class="category-count">${countFor(c)}</span></button>`).join("");
   $$("[data-category]").forEach(el=>el.onclick=()=>{if(!state.suppressCategoryClick)selectCategory(el.dataset.category);});
-  $("#addCategory").onclick=()=>openCategory();
   requestAnimationFrame(updateCategoryOverflow);
 }
 
@@ -747,7 +746,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.4.7",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.4.8",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
