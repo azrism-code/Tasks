@@ -11,7 +11,7 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "./icon.svg?v=2.4.8",
+      "src": "./icon.svg?v=2.5.2",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
