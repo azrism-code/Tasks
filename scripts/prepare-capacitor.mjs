@@ -4,6 +4,7 @@ import { build } from "esbuild";
 const files = [
   "index.html",
   "app.js",
+  "data-store.js",
   "style.css",
   "reminders.js",
   "firebase-config.js",
@@ -29,7 +30,7 @@ await build({
 const indexPath = "www/index.html";
 let index = await readFile(indexPath, "utf8");
 index = index.replace(
-  '<script type="module" src="./app.js?v=2.4.9"></script>',
-  '<script type="module" src="./native-bridge.js"></script>\n  <script type="module" src="./app.js?v=2.4.9"></script>'
+  '<script type="module" src="./app.js?v=2.5.0"></script>',
+  '<script type="module" src="./native-bridge.js"></script>\n  <script type="module" src="./app.js?v=2.5.0"></script>'
 );
 await writeFile(indexPath, index);

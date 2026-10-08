@@ -2,10 +2,10 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithCredential, signInWithPopup, signInWithRedirect, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
-  onSnapshot, serverTimestamp, writeBatch
-} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.9";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.9";
+  onSnapshot, serverTimestamp, writeBatch, setStorageMode
+} from "./data-store.js?v=2.5.0";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.0";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.0";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -56,7 +56,7 @@ function loadSettings(){
   }catch{return structuredClone(defaultSettings);}
 }
 const todayKey=new Date().toISOString().slice(0,10);
-const state = { user:null, language:"he", settings:loadSettings(), notifications:{...notificationDefaults}, notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, reopenCategoryManager:false, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
+const state = { storageMode:localStorage.getItem("my-tasks-storage-mode")==="local"?"local":"cloud", user:null, language:"he", settings:loadSettings(), notifications:{...notificationDefaults}, notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, reopenCategoryManager:false, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -81,7 +81,8 @@ async function offerInitialNotificationPermission(){
   if(!state.notifications.enabled||status.display==="granted"||localStorage.getItem(key))return;
   localStorage.setItem(key,"shown");
   setTimeout(async()=>{
-    if(!confirm("כדי לקבל תזכורות גם כשהאפליקציה סגורה, יש לאפשר ל־My Tasks לשלוח התראות. לאפשר עכשיו?"))return;
+    const question=state.storageMode==="local"&&!window.MyTasksNative?.isNative?"לאפשר התראות לתזכורות מקומיות כשהאפליקציה פתוחה?":"כדי לקבל תזכורות גם כשהאפליקציה סגורה, יש לאפשר ל־My Tasks לשלוח התראות. לאפשר עכשיו?";
+    if(!confirm(question))return;
     await requestNotificationPermission();
   },250);
 }
@@ -99,6 +100,7 @@ function updateNotificationSettingsUi(){
   const native=!!window.MyTasksNative?.isNative;
   $("#nativeSoundSettings").classList.toggle("hidden",!native);
   $("#pwaSoundHelp").classList.toggle("hidden",native);
+  $("#notificationHelp").textContent=state.storageMode==="local"&&!native?"במצב מקומי תזכורות PWA פועלות כשהאפליקציה פתוחה. ב־APK הן מתוזמנות גם כשהוא סגור.":"בדיקת ההתראה תופיע בתוך כחמש שניות.";
   $("#notificationSource").textContent=native?"מקור ההתראה: APK · ההגדרה חלה על התקנה זו":"מקור ההתראה: PWA · ההגדרה חלה על דפדפן זה";
   label.textContent=notificationStatusLabel(status);
   label.className=`notification-status ${status?.display==="granted"?(status.native&&status.exact!=="granted"?"warning":"success"):status?.display==="error"?"warning":"blocked"}`;
@@ -107,7 +109,7 @@ function updateNotificationSettingsUi(){
   $("#requestNotificationPermissionBtn").classList.toggle("hidden",status?.display==="granted");
 }
 async function registerPushSubscription() {
-  if(window.MyTasksNative?.isNative || !state.notifications.enabled || !webPushPublicKey || !("Notification" in window) || Notification.permission!=="granted" || !("PushManager" in window))return;
+  if(state.storageMode!=="cloud" || window.MyTasksNative?.isNative || !state.notifications.enabled || !webPushPublicKey || !("Notification" in window) || Notification.permission!=="granted" || !("PushManager" in window))return;
   const registration=await navigator.serviceWorker.ready;
   const bytes=Uint8Array.from(atob(webPushPublicKey.replace(/-/g,"+").replace(/_/g,"/")),char=>char.charCodeAt(0));
   const subscription=await registration.pushManager.getSubscription() ||
@@ -115,6 +117,15 @@ async function registerPushSubscription() {
   const endpointId=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(subscription.endpoint))
     .then(buffer=>[...new Uint8Array(buffer)].map(byte=>byte.toString(16).padStart(2,"0")).join(""));
   await setDoc(userDoc("pushSubscriptions",endpointId),{subscription:subscription.toJSON(),updatedAt:serverTimestamp()});
+}
+async function unregisterPushSubscription(){
+  if(window.MyTasksNative?.isNative || !("serviceWorker" in navigator))return;
+  const registration=await navigator.serviceWorker.ready;
+  const subscription=await registration.pushManager?.getSubscription();
+  if(!subscription)return;
+  const endpointId=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(subscription.endpoint)).then(buffer=>[...new Uint8Array(buffer)].map(byte=>byte.toString(16).padStart(2,"0")).join(""));
+  await subscription.unsubscribe();
+  if(state.user&&state.storageMode==="cloud")await deleteDoc(userDoc("pushSubscriptions",endpointId));
 }
 const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
 
@@ -191,6 +202,8 @@ function resetVoiceInput(){
 }
 
 async function login() {
+  state.storageMode="cloud";setStorageMode("cloud");localStorage.setItem("my-tasks-storage-mode","cloud");
+  if(auth.currentUser){await activateSession(auth.currentUser,"cloud");return;}
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({prompt:"select_account"});
   try {
@@ -224,15 +237,42 @@ function startSync() {
   }));
 }
 
-onAuthStateChanged(auth, async user => {
-  state.user=user;
+async function activateSession(user,storageMode){
+  reminderService.stop();state.unsubs.forEach(unsub=>unsub());state.unsubs=[];
+  state.storageMode=storageMode;setStorageMode(storageMode);state.user=user;
+  state.categories=[];state.tasks=[];state.tasksLoaded=false;state.view="tasks";
   $("#login").classList.toggle("hidden",!!user);
   $("#app").classList.toggle("hidden",!user);
-  if (!user) { reminderService.stop();state.unsubs.forEach(unsub=>unsub()); state.unsubs=[]; return; }
-  $("#userName").textContent=user.email || user.displayName || "";
+  if(!user)return;
+  $("#userName").textContent=storageMode==="local"?"שמירה מקומית":user.email||user.displayName||"";
+  $("#storageModeLabel").textContent=storageMode==="local"?"⌂ הנתונים נשמרים במכשיר זה":"☁ הנתונים נשמרים בחשבון Google בענן";
   try{const saved=JSON.parse(localStorage.getItem(`my-tasks-notifications-${user.uid}`)||"{}");state.notifications={enabled:saved.enabled!==false,sound:soundChoices.includes(saved.sound)?saved.sound:"default",vibration:saved.vibration!==false};}catch{state.notifications={...notificationDefaults};}
   publishNotificationPreferences().catch(console.error);
   startSync();reminderService.start();handleNotificationRoute();offerInitialNotificationPermission();
+  if(storageMode==="cloud")registerPushSubscription().catch(console.error);
+}
+async function enterLocal(){
+  await reminderService.cancelPending();
+  await unregisterPushSubscription();
+  localStorage.setItem("my-tasks-storage-mode","local");
+  await activateSession({uid:"local-device",displayName:"שמירה מקומית"},"local");
+}
+async function chooseStorageMode(){
+  closeMenus();
+  await reminderService.cancelPending();
+  await unregisterPushSubscription();
+  state.storageMode="choice";localStorage.removeItem("my-tasks-storage-mode");
+  await activateSession(null,"choice");
+}
+async function leaveSession(){
+  await chooseStorageMode();
+  if(auth.currentUser)await signOut(auth);
+}
+onAuthStateChanged(auth, async user => {
+  if(state.storageMode==="choice")return;
+  if(state.storageMode==="local"&&state.user?.uid==="local-device")return;
+  if(state.storageMode==="local")return activateSession({uid:"local-device",displayName:"שמירה מקומית"},"local");
+  await activateSession(user,"cloud");
 });
 
 function selectArea(area) {
@@ -447,7 +487,7 @@ function openTask(task=null,presetDate="") {
   const reminder=task?.reminder;
   $("#reminderEditor").open=!!reminder?.enabled;
   $("#reminderEnabled").checked=!!reminder?.enabled;
-  const reminderDate=reminder?.dateTime?.toDate?.() || null;
+  const reminderDate=reminder?.dateTime?.toDate?.() || (reminder?.dateTime?new Date(reminder.dateTime):null);
   $("#reminderDate").value=reminderDate ? [reminderDate.getFullYear(),String(reminderDate.getMonth()+1).padStart(2,"0"),String(reminderDate.getDate()).padStart(2,"0")].join("-") : "";
   $("#reminderTime").value=reminderDate ? [reminderDate.getHours(),reminderDate.getMinutes()].map(n=>String(n).padStart(2,"0")).join(":") : "";
   $("#reminderRepeat").value=reminder?.repeat||"none";$("#reminderLevel").value=reminder?.notificationLevel||"normal";
@@ -573,22 +613,14 @@ async function saveSettings(event){
     await publishNotificationPreferences();
     await reminderService.syncNative();
     if(state.notifications.enabled)await registerPushSubscription();
-    else if(!window.MyTasksNative?.isNative && "serviceWorker" in navigator){
-      const registration=await navigator.serviceWorker.ready;
-      const subscription=await registration.pushManager?.getSubscription();
-      if(subscription){
-        const endpointId=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(subscription.endpoint)).then(buffer=>[...new Uint8Array(buffer)].map(byte=>byte.toString(16).padStart(2,"0")).join(""));
-        await subscription.unsubscribe();
-        await deleteDoc(userDoc("pushSubscriptions",endpointId));
-      }
-    }
+    else await unregisterPushSubscription();
     await refreshNotificationStatus(true);
   }catch(error){console.error(error);toast("ההגדרות נשמרו; סנכרון ההתראות נכשל — נסה שוב");}
 }
 async function publishNotificationPreferences(){
   if(!window.MyTasksNative?.isNative && "serviceWorker" in navigator){
     const registration=await navigator.serviceWorker.ready;
-    (registration.active||navigator.serviceWorker.controller)?.postMessage({type:"notification-preferences",preferences:state.notifications});
+    (registration.active||navigator.serviceWorker.controller)?.postMessage({type:"notification-preferences",preferences:{...state.notifications,enabled:state.storageMode==="cloud"&&state.notifications.enabled}});
   }
 }
 async function requestNotificationPermission(){
@@ -756,7 +788,9 @@ function openManageCategories(){
 
 initVoiceInput();
 $("#loginBtn").onclick=login;
-[$("#logoutBtn"),$("#menuLogoutBtn")].forEach(button=>button.onclick=()=>signOut(auth));
+$("#localLoginBtn").onclick=()=>safe(enterLocal);
+$("#menuStorageModeBtn").onclick=()=>safe(chooseStorageMode);
+[$("#logoutBtn"),$("#menuLogoutBtn")].forEach(button=>button.onclick=()=>safe(leaveSession));
 $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
 $$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
 $("#menuSettingsBtn").onclick=openSettings;
@@ -784,9 +818,11 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.4.9",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.5.0",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
 applySettings();
 render();
+
+if(state.storageMode==="local")activateSession({uid:"local-device",displayName:"שמירה מקומית"},"local").catch(console.error);

@@ -133,5 +133,5 @@ for(const sound of ["gentle","normal","loud","bell","alarm"])
   await copyFile(`sounds/tasks_${sound}.wav`,`${rawDirectory}/tasks_${sound}.wav`);
 const gradlePath="android/app/build.gradle";
 let gradle=await readFile(gradlePath,"utf8");
-gradle=gradle.replace(/versionCode \d+/,"versionCode 20409").replace(/versionName "[^"]+"/,'versionName "2.4.9"');
+gradle=gradle.replace(/versionCode \d+/,"versionCode 20500").replace(/versionName "[^"]+"/,'versionName "2.5.0"');
 await writeFile(gradlePath,gradle);

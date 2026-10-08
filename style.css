@@ -342,3 +342,7 @@ html[data-theme="dark"] .complete-btn:hover{color:#fff}
 html[data-theme="dark"] #settingsForm .segmented-control span{color:#b7c5d9}
 html[data-theme="dark"] #settingsForm .segmented-control input:checked+span{color:#fff}
 .mobile-header .platform-badge{color:#b8c9e0;border-color:#59708e}
+
+.login-options{display:grid;gap:10px}
+.local-login-note{display:block;margin-top:14px;color:var(--muted);font-size:.76rem;line-height:1.5}
+.storage-mode-label{display:block;padding:8px 12px;color:var(--muted);font-size:.7rem;border-top:1px solid var(--line)}

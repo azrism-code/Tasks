@@ -1,4 +1,4 @@
-import { Timestamp, updateDoc, runTransaction } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { Timestamp, updateDoc, runTransaction } from "./data-store.js?v=2.5.0";
 
 export const reminderDefaults = {
   enabled: false, dateTime: null, nextTriggerAt: null, timeZone: null, repeat: "none", customRepeat: { interval: 1, unit: "day" },
@@ -266,8 +266,14 @@ export function createReminderService({db, taskRef, getTasks, getPreferences=()=
     const plugin=nativePlugin();
     if(plugin)await plugin.cancel({notifications:[{id:notificationId(id)}]});
   }
+  async function cancelPending(){
+    const plugin=nativePlugin();
+    if(!plugin)return;
+    const pending=await plugin.getPending();
+    if(pending.notifications?.length)await plugin.cancel({notifications:pending.notifications.map(({id})=>({id}))});
+  }
   return {
-    permission,status,testNotification,openNotificationSettings,openExactAlarmSettings,
+    cancelPending,permission,status,testNotification,openNotificationSettings,openExactAlarmSettings,
     start() {
       this.stop();
       if(nativePlugin()){

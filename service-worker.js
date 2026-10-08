@@ -1,4 +1,4 @@
-const CACHE = "azri-tasks-v44";
+const CACHE = "azri-tasks-v45";
 const PREFERENCES_CACHE="my-tasks-notification-preferences";
 const PREFERENCES_URL=new URL("./notification-preferences",self.location).href;
 self.addEventListener("message",event=>{
@@ -7,13 +7,14 @@ self.addEventListener("message",event=>{
 const FILES = [
   "./",
   "./index.html",
-  "./style.css?v=2.4.9",
-  "./app.js?v=2.4.9",
-  "./reminders.js?v=2.4.9",
-  "./firebase-config.js?v=2.4.9",
-  "./manifest.webmanifest?v=2.4.9",
-  "./icon.svg?v=2.4.9",
-  "./header-logo.svg?v=2.4.9"
+  "./style.css?v=2.5.0",
+  "./app.js?v=2.5.0",
+  "./data-store.js?v=2.5.0",
+  "./reminders.js?v=2.5.0",
+  "./firebase-config.js?v=2.5.0",
+  "./manifest.webmanifest?v=2.5.0",
+  "./icon.svg?v=2.5.0",
+  "./header-logo.svg?v=2.5.0"
 ];
 
 self.addEventListener("install", event => {
@@ -36,7 +37,7 @@ self.addEventListener("fetch", event => {
   event.respondWith(
     fetch(event.request, { cache: "no-store" })
       .then(response => {
-        if (response && response.status === 200 && response.type === "basic") {
+        if (response && response.status === 200 && (response.type === "basic" || (response.type === "cors" && new URL(event.request.url).origin === "https://www.gstatic.com"))) {
           const copy = response.clone();
           caches.open(CACHE).then(cache => cache.put(event.request, copy));
         }

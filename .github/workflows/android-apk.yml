@@ -12,6 +12,7 @@ on:
       - "native-bridge.js"
       - "index.html"
       - "app.js"
+      - "data-store.js"
       - "reminders.js"
       - "firebase-config.js"
       - "style.css"
@@ -80,12 +81,12 @@ jobs:
             -Pandroid.injected.signing.key.password="$APK_KEY_PASSWORD"
 
       - name: Package APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk My-Tasks-v2.4.9-debug.apk
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk My-Tasks-v2.5.0-debug.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: My-Tasks-v2.4.9-Android
-          path: My-Tasks-v2.4.9-debug.apk
+          name: My-Tasks-v2.5.0-Android
+          path: My-Tasks-v2.5.0-debug.apk
           if-no-files-found: error
           retention-days: 30
