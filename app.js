@@ -3,9 +3,9 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithCredential, 
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch, setStorageMode
-} from "./data-store.js?v=2.5.0";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.0";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.0";
+} from "./data-store.js?v=2.5.1";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.1";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.1";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -125,7 +125,7 @@ async function unregisterPushSubscription(){
   if(!subscription)return;
   const endpointId=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(subscription.endpoint)).then(buffer=>[...new Uint8Array(buffer)].map(byte=>byte.toString(16).padStart(2,"0")).join(""));
   await subscription.unsubscribe();
-  if(state.user&&state.storageMode==="cloud")await deleteDoc(userDoc("pushSubscriptions",endpointId));
+  if(state.user&&state.storageMode==="cloud")deleteDoc(userDoc("pushSubscriptions",endpointId)).catch(console.error);
 }
 const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
 
@@ -253,14 +253,14 @@ async function activateSession(user,storageMode){
 }
 async function enterLocal(){
   await reminderService.cancelPending();
-  await unregisterPushSubscription();
+  await unregisterPushSubscription().catch(console.error);
   localStorage.setItem("my-tasks-storage-mode","local");
   await activateSession({uid:"local-device",displayName:"שמירה מקומית"},"local");
 }
 async function chooseStorageMode(){
   closeMenus();
   await reminderService.cancelPending();
-  await unregisterPushSubscription();
+  await unregisterPushSubscription().catch(console.error);
   state.storageMode="choice";localStorage.removeItem("my-tasks-storage-mode");
   await activateSession(null,"choice");
 }
@@ -818,7 +818,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.5.0",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.5.1",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
