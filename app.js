@@ -3,9 +3,9 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithCredential, 
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch, setStorageMode
-} from "./data-store.js?v=2.5.1";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.1";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.1";
+} from "./data-store.js?v=2.5.2";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.2";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.2";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -56,7 +56,8 @@ function loadSettings(){
   }catch{return structuredClone(defaultSettings);}
 }
 const todayKey=new Date().toISOString().slice(0,10);
-const state = { storageMode:localStorage.getItem("my-tasks-storage-mode")==="local"?"local":"cloud", user:null, language:"he", settings:loadSettings(), notifications:{...notificationDefaults}, notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, reopenCategoryManager:false, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
+const savedStorageMode=localStorage.getItem("my-tasks-storage-mode");
+const state = { storageMode:["local","cloud"].includes(savedStorageMode)?savedStorageMode:"choice", user:null, language:"he", settings:loadSettings(), notifications:{...notificationDefaults}, notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, reopenCategoryManager:false, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -245,7 +246,6 @@ async function activateSession(user,storageMode){
   $("#app").classList.toggle("hidden",!user);
   if(!user)return;
   $("#userName").textContent=storageMode==="local"?"שמירה מקומית":user.email||user.displayName||"";
-  $("#storageModeLabel").textContent=storageMode==="local"?"⌂ הנתונים נשמרים במכשיר זה":"☁ הנתונים נשמרים בחשבון Google בענן";
   try{const saved=JSON.parse(localStorage.getItem(`my-tasks-notifications-${user.uid}`)||"{}");state.notifications={enabled:saved.enabled!==false,sound:soundChoices.includes(saved.sound)?saved.sound:"default",vibration:saved.vibration!==false};}catch{state.notifications={...notificationDefaults};}
   publishNotificationPreferences().catch(console.error);
   startSync();reminderService.start();handleNotificationRoute();offerInitialNotificationPermission();
@@ -272,7 +272,9 @@ onAuthStateChanged(auth, async user => {
   if(state.storageMode==="choice")return;
   if(state.storageMode==="local"&&state.user?.uid==="local-device")return;
   if(state.storageMode==="local")return activateSession({uid:"local-device",displayName:"שמירה מקומית"},"local");
-  await activateSession(user,"cloud");
+  if(user)return activateSession(user,"cloud");
+  state.storageMode="choice";localStorage.removeItem("my-tasks-storage-mode");
+  await activateSession(null,"choice");
 });
 
 function selectArea(area) {
@@ -789,7 +791,6 @@ function openManageCategories(){
 initVoiceInput();
 $("#loginBtn").onclick=login;
 $("#localLoginBtn").onclick=()=>safe(enterLocal);
-$("#menuStorageModeBtn").onclick=()=>safe(chooseStorageMode);
 [$("#logoutBtn"),$("#menuLogoutBtn")].forEach(button=>button.onclick=()=>safe(leaveSession));
 $$(".app-menu-btn").forEach(button=>button.onclick=event=>{event.stopPropagation();const menu=$("#appMenu");const opening=menu.classList.contains("hidden");closeMenus();if(opening){const rect=button.getBoundingClientRect();menu.style.top=`${rect.bottom+6}px`;menu.style.right=`${Math.max(12,innerWidth-rect.right)}px`;menu.classList.remove("hidden");}});
 $$("[data-menu-view]").forEach(button=>button.onclick=()=>{state.view=button.dataset.menuView;closeMenus();render();});
@@ -818,7 +819,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.5.1",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.5.2",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
@@ -826,3 +827,5 @@ applySettings();
 render();
 
 if(state.storageMode==="local")activateSession({uid:"local-device",displayName:"שמירה מקומית"},"local").catch(console.error);
+else if(state.storageMode==="cloud"){$("#login").classList.add("hidden");$("#app").classList.remove("hidden");}
+else{$("#login").classList.remove("hidden");$("#app").classList.add("hidden");}
