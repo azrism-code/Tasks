@@ -61,7 +61,7 @@ export function scheduleReminder(task) {
   return validDate(next) ? next : null;
 }
 
-export function createReminderService({db, taskRef, getTasks, onError}) {
+export function createReminderService({db, taskRef, getTasks, getPreferences=()=>({enabled:true,sound:"default",vibration:true}), onError}) {
   let timer=null, busy=false, nativeInitPromise=null;
   const withTimeout=(promise,ms=5000,label="פעולת Android")=>Promise.race([
     promise,
@@ -137,16 +137,18 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
   async function scheduleNativeTask(task) {
     const plugin=nativePlugin();
     if(!plugin)return {scheduled:false,reason:"not-native"};
-    initNative().catch(error=>console.debug(error));
+    await initNative();
     const id=notificationId(task.id);
     await plugin.cancel({notifications:[{id}]});
+    if(!getPreferences().enabled)return {scheduled:false,reason:"disabled"};
     const due=scheduleReminder(task);
     if(!due)return {scheduled:false,reason:"no-reminder"};
     const status=await plugin.checkPermissions();
     if(status.display!=="granted")return {scheduled:false,reason:"notifications-blocked"};
     const at=due<=new Date()?new Date(Date.now()+1500):due;
+    const channelId=await reminderChannel(task.reminder.notificationLevel);
     const result=await plugin.schedule({notifications:[{
-      id,title:task.text,body:"תזכורת מ־My Tasks",
+      channelId,actionTypeId:"TASK_REMINDER",id,title:task.text,body:"תזכורת מ־My Tasks",
       schedule:{at,allowWhileIdle:true},
       extra:{taskId:task.id},
       iconColor:"#2563EB",autoCancel:true
@@ -156,7 +158,14 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
     const verified=!!pending.notifications?.some(notification=>notification.id===id);
     return {scheduled:verified,reason:verified?null:"not-registered",warning:result?.warning||null,id};
   }
+  async function reminderChannel(level="normal"){
+    const preferences=getPreferences();
+    const id=`tasks-v249-${level}-${preferences.sound}-${preferences.vibration?"v":"n"}`;
+    await settingsPlugin().createReminderChannel({id,level,sound:preferences.sound,vibration:preferences.vibration});
+    return id;
+  }
   async function testNotification() {
+    if(!getPreferences().enabled)throw new Error("ההתראות כבויות; הפעל ושמור תחילה");
     const plugin=nativePlugin();
     if(!plugin){
       if(!await permission(false))throw new Error("הרשאת ההתראות חסומה בדפדפן");
@@ -168,8 +177,9 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
     if(!await permission(true))throw new Error("הרשאת ההתראות חסומה");
     const id=94720311;
     await plugin.cancel({notifications:[{id}]});
+    const channelId=await reminderChannel();
     const result=await plugin.schedule({notifications:[{
-      id,title:"My Tasks",body:"התראת הבדיקה פועלת בהצלחה",
+      channelId,id,title:"My Tasks",body:"התראת הבדיקה פועלת בהצלחה",
       schedule:{at:new Date(Date.now()+5000),allowWhileIdle:true},
       iconColor:"#2563EB",autoCancel:true
     }]});
@@ -190,7 +200,12 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
   async function syncNative() {
     const plugin=nativePlugin();
     if(!plugin)return false;
-    initNative().catch(error=>console.debug(error));
+    await initNative();
+    if(!getPreferences().enabled){
+      const pending=await plugin.getPending();
+      if(pending.notifications?.length)await plugin.cancel({notifications:pending.notifications.map(({id})=>({id}))});
+      return true;
+    }
     const status=await plugin.checkPermissions();
     if(status.display!=="granted")return false;
     for(const task of getTasks())await scheduleNativeTask(task);
@@ -199,7 +214,7 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
   async function show(task) {
     const plugin=nativePlugin();
     if(plugin)return scheduleNativeTask(task);
-    if (Notification.permission !== "granted") return;
+    if (!getPreferences().enabled || Notification.permission !== "granted") return;
     const registration=await navigator.serviceWorker.ready;
     await registration.showNotification(task.text, {
       body:"תזכורת מ־My Tasks",
@@ -212,9 +227,10 @@ export function createReminderService({db, taskRef, getTasks, onError}) {
   }
   async function tick() {
     if(nativePlugin())return;
-    if (busy || !("Notification" in window) || Notification.permission !== "granted") return; busy=true;
+    if (!getPreferences().enabled || busy || !("Notification" in window) || Notification.permission !== "granted") return; busy=true;
     try {
       for (const task of getTasks()) {
+        if(!getPreferences().enabled)return;
         const due=scheduleReminder(task);
         if (!due || due > new Date()) continue;
         const ref=taskRef(task.id);

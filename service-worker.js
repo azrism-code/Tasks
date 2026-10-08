@@ -1,14 +1,19 @@
-const CACHE = "azri-tasks-v43";
+const CACHE = "azri-tasks-v44";
+const PREFERENCES_CACHE="my-tasks-notification-preferences";
+const PREFERENCES_URL=new URL("./notification-preferences",self.location).href;
+self.addEventListener("message",event=>{
+  if(event.data?.type==="notification-preferences")event.waitUntil(caches.open(PREFERENCES_CACHE).then(cache=>cache.put(PREFERENCES_URL,new Response(JSON.stringify(event.data.preferences)))));
+});
 const FILES = [
   "./",
   "./index.html",
-  "./style.css?v=2.4.8",
-  "./app.js?v=2.4.8",
-  "./reminders.js?v=2.4.8",
-  "./firebase-config.js?v=2.4.8",
-  "./manifest.webmanifest?v=2.4.8",
-  "./icon.svg?v=2.4.8",
-  "./header-logo.svg?v=2.4.8"
+  "./style.css?v=2.4.9",
+  "./app.js?v=2.4.9",
+  "./reminders.js?v=2.4.9",
+  "./firebase-config.js?v=2.4.9",
+  "./manifest.webmanifest?v=2.4.9",
+  "./icon.svg?v=2.4.9",
+  "./header-logo.svg?v=2.4.9"
 ];
 
 self.addEventListener("install", event => {
@@ -19,7 +24,7 @@ self.addEventListener("install", event => {
 self.addEventListener("activate", event => {
   event.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))
+      .then(keys => Promise.all(keys.filter(key => key !== CACHE && key !== PREFERENCES_CACHE).map(key => caches.delete(key))))
       .then(() => self.clients.claim())
       .then(() => self.clients.matchAll({ type: "window", includeUncontrolled: true }))
       .then(clients => Promise.all(clients.map(client => client.navigate(client.url))))
@@ -58,7 +63,11 @@ self.addEventListener("push", event => {
   const tag = data.tag || `task-reminder-${taskId || "general"}`;
 
   event.waitUntil(
-    self.registration.showNotification(title, {
+    (async()=>{
+    const stored=await caches.match(PREFERENCES_URL);
+    const preferences=stored?await stored.json():{};
+    if(preferences.enabled===false)return;
+    return self.registration.showNotification(title, {
       body,
       icon: "./icon.svg",
       badge: "./icon.svg",
@@ -72,7 +81,8 @@ self.addEventListener("push", event => {
         { action: "snooze10", title: "⏰ דחה 10 דקות" },
         { action: "snooze60", title: "⏰ דחה שעה" }
       ]
-    })
+    });
+    })()
   );
 });
 

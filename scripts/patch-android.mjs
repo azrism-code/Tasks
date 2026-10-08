@@ -37,6 +37,12 @@ if(!activity.includes("NotificationSettingsPlugin.class")){
 const settingsPluginPath="android/app/src/main/java/com/azri/mytasks/NotificationSettingsPlugin.java";
 await writeFile(settingsPluginPath,`package com.azri.mytasks;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Context;
+import android.media.AudioAttributes;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
 import android.content.Intent;
 import android.net.Uri;
 import android.provider.Settings;
@@ -49,6 +55,49 @@ import com.getcapacitor.PluginMethod;
 
 @CapacitorPlugin(name = "NotificationSettings")
 public class NotificationSettingsPlugin extends Plugin {
+    private Ringtone preview;
+    private Uri soundUri(String sound) {
+        if ("silent".equals(sound)) return null;
+        if ("default".equals(sound)) return RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        if (!java.util.Arrays.asList("gentle", "normal", "loud", "bell", "alarm").contains(sound))
+            throw new IllegalArgumentException("Unknown notification sound");
+        return Uri.parse("android.resource://" + getContext().getPackageName() + "/raw/tasks_" + sound);
+    }
+
+    @PluginMethod
+    public void createReminderChannel(PluginCall call) {
+        try {
+            String id = call.getString("id");
+            String sound = call.getString("sound", "default");
+            String level = call.getString("level", "normal");
+            int importance = "normal".equals(level) ? NotificationManager.IMPORTANCE_DEFAULT : NotificationManager.IMPORTANCE_HIGH;
+            NotificationChannel channel = new NotificationChannel(id, "My Tasks · " + sound + " · " + level, importance);
+            channel.setDescription("צליל ורטט שנבחרו בהגדרות My Tasks");
+            channel.setSound(soundUri(sound), new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+            channel.enableVibration(call.getBoolean("vibration", true));
+            ((NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE)).createNotificationChannel(channel);
+            call.resolve(new JSObject());
+        } catch (Exception error) { call.reject("יצירת ערוץ ההתראה נכשלה", error); }
+    }
+
+    @PluginMethod
+    public void previewSound(PluginCall call) {
+        try {
+            if (preview != null) preview.stop();
+            Uri uri = soundUri(call.getString("sound", "default"));
+            if (uri != null) {
+                preview = RingtoneManager.getRingtone(getContext(), uri);
+                if (preview == null) throw new IllegalStateException("Sound unavailable");
+                preview.play();
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    if (preview != null) preview.stop();
+                }, 4000);
+            }
+            call.resolve(new JSObject());
+        } catch (Exception error) { call.reject("השמעת הצליל נכשלה", error); }
+    }
+
     @PluginMethod
     public void openNotificationSettings(PluginCall call) {
         Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
@@ -75,3 +124,14 @@ for(const density of Object.keys(iconSizes)){
   await copyFile(`android-icons/ic_launcher-${density}.png`,`${target}/ic_launcher_round.png`);
   await copyFile(`android-icons/ic_launcher_foreground-${density}.png`,`${target}/ic_launcher_foreground.png`);
 }
+
+// Package short PCM sounds as Android resources, using the same synthesis as preview assets.
+await import("./generate-sounds.mjs");
+const rawDirectory="android/app/src/main/res/raw";
+await mkdir(rawDirectory,{recursive:true});
+for(const sound of ["gentle","normal","loud","bell","alarm"])
+  await copyFile(`sounds/tasks_${sound}.wav`,`${rawDirectory}/tasks_${sound}.wav`);
+const gradlePath="android/app/build.gradle";
+let gradle=await readFile(gradlePath,"utf8");
+gradle=gradle.replace(/versionCode \d+/,"versionCode 20409").replace(/versionName "[^"]+"/,'versionName "2.4.9"');
+await writeFile(gradlePath,gradle);

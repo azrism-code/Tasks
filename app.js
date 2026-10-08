@@ -4,8 +4,8 @@ import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.8";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.8";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.4.9";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.4.9";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -40,6 +40,8 @@ const text = {
 
 const lastArea=["work","private"].includes(localStorage.getItem("tasks-last-area"))?localStorage.getItem("tasks-last-area"):"work";
 const savedCategory = area => localStorage.getItem(`tasks-selected-${area}`) || "";
+const notificationDefaults={enabled:true,sound:"default",vibration:true};
+const soundChoices=["default","gentle","normal","loud","bell","alarm","silent"];
 const defaultSettings={theme:"light",areaLanguages:{work:"en",private:"he"}};
 function loadSettings(){
   try{
@@ -54,7 +56,7 @@ function loadSettings(){
   }catch{return structuredClone(defaultSettings);}
 }
 const todayKey=new Date().toISOString().slice(0,10);
-const state = { user:null, language:"he", settings:loadSettings(), notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, reopenCategoryManager:false, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
+const state = { user:null, language:"he", settings:loadSettings(), notifications:{...notificationDefaults}, notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, reopenCategoryManager:false, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -65,7 +67,7 @@ function applySettings(){document.documentElement.dataset.theme=state.settings.t
 const isArchived = task => !!task.archivedAt || (!!task.completedAt && task.archivedAt===undefined);
 const userCollection = name => collection(db,"users",state.user.uid,name);
 const userDoc = (name,id) => doc(db,"users",state.user.uid,name,id);
-const reminderService=createReminderService({db,taskRef:id=>userDoc("tasks",id),getTasks:()=>state.tasks,onError:console.error});
+const reminderService=createReminderService({db,taskRef:id=>userDoc("tasks",id),getTasks:()=>state.tasks,getPreferences:()=>state.notifications,onError:console.error});
 async function refreshNotificationStatus(renderAfter=false){
   try{state.notificationStatus=await reminderService.status();}
   catch(error){console.error(error);state.notificationStatus={native:!!window.MyTasksNative?.isNative,display:"error",exact:"unknown",pending:0};}
@@ -76,7 +78,7 @@ async function refreshNotificationStatus(renderAfter=false){
 async function offerInitialNotificationPermission(){
   const status=await refreshNotificationStatus(true);
   const key="my-tasks-notification-intro-v1";
-  if(status.display==="granted"||localStorage.getItem(key))return;
+  if(!state.notifications.enabled||status.display==="granted"||localStorage.getItem(key))return;
   localStorage.setItem(key,"shown");
   setTimeout(async()=>{
     if(!confirm("כדי לקבל תזכורות גם כשהאפליקציה סגורה, יש לאפשר ל־My Tasks לשלוח התראות. לאפשר עכשיו?"))return;
@@ -84,6 +86,7 @@ async function offerInitialNotificationPermission(){
   },250);
 }
 function notificationStatusLabel(status=state.notificationStatus){
+  if(!state.notifications.enabled)return "התראות כבויות במכשיר זה";
   if(!status)return "בודק הרשאות…";
   if(status.display==="error")return "⚠️ לא ניתן לקרוא את מצב ההרשאה — ניתן לפתוח את הגדרות Android";
   if(status.display!=="granted")return "⛔ ההתראות חסומות";
@@ -93,6 +96,10 @@ function notificationStatusLabel(status=state.notificationStatus){
 function updateNotificationSettingsUi(){
   const label=$("#notificationStatus");if(!label)return;
   const status=state.notificationStatus;
+  const native=!!window.MyTasksNative?.isNative;
+  $("#nativeSoundSettings").classList.toggle("hidden",!native);
+  $("#pwaSoundHelp").classList.toggle("hidden",native);
+  $("#notificationSource").textContent=native?"מקור ההתראה: APK · ההגדרה חלה על התקנה זו":"מקור ההתראה: PWA · ההגדרה חלה על דפדפן זה";
   label.textContent=notificationStatusLabel(status);
   label.className=`notification-status ${status?.display==="granted"?(status.native&&status.exact!=="granted"?"warning":"success"):status?.display==="error"?"warning":"blocked"}`;
   $("#openNotificationSettingsBtn").classList.toggle("hidden",!status?.native);
@@ -100,7 +107,7 @@ function updateNotificationSettingsUi(){
   $("#requestNotificationPermissionBtn").classList.toggle("hidden",status?.display==="granted");
 }
 async function registerPushSubscription() {
-  if(!webPushPublicKey || Notification.permission!=="granted" || !("PushManager" in window))return;
+  if(window.MyTasksNative?.isNative || !state.notifications.enabled || !webPushPublicKey || !("Notification" in window) || Notification.permission!=="granted" || !("PushManager" in window))return;
   const registration=await navigator.serviceWorker.ready;
   const bytes=Uint8Array.from(atob(webPushPublicKey.replace(/-/g,"+").replace(/_/g,"/")),char=>char.charCodeAt(0));
   const subscription=await registration.pushManager.getSubscription() ||
@@ -223,6 +230,8 @@ onAuthStateChanged(auth, async user => {
   $("#app").classList.toggle("hidden",!user);
   if (!user) { reminderService.stop();state.unsubs.forEach(unsub=>unsub()); state.unsubs=[]; return; }
   $("#userName").textContent=user.email || user.displayName || "";
+  try{const saved=JSON.parse(localStorage.getItem(`my-tasks-notifications-${user.uid}`)||"{}");state.notifications={enabled:saved.enabled!==false,sound:soundChoices.includes(saved.sound)?saved.sound:"default",vibration:saved.vibration!==false};}catch{state.notifications={...notificationDefaults};}
+  publishNotificationPreferences().catch(console.error);
   startSync();reminderService.start();handleNotificationRoute();offerInitialNotificationPermission();
 });
 
@@ -237,6 +246,7 @@ function closeMenus(){ $$(".action-menu,.category-menu").forEach(el=>el.remove()
 
 function render() {
   applySettings();
+  $$(".platform-badge").forEach(el=>{el.textContent=window.MyTasksNative?.isNative?"APK":"PWA";el.title=window.MyTasksNative?.isNative?"אפליקציית Android":"אפליקציית אינטרנט";});
   document.documentElement.lang="he";
   document.documentElement.dir="rtl";
   $$("[data-i18n]").forEach(el=>el.textContent=t(el.dataset.i18n));
@@ -272,7 +282,7 @@ function formatReminder(task) {
   const today=new Date(), tomorrow=new Date(today);tomorrow.setDate(today.getDate()+1);
   const day=date.toDateString()===today.toDateString()?"היום":date.toDateString()===tomorrow.toDateString()?"מחר":
     new Intl.DateTimeFormat("he-IL",{day:"numeric",month:"short"}).format(date);
-  const notificationsReady=state.notificationStatus?.display==="granted"&&(!state.notificationStatus.native||state.notificationStatus.exact==="granted");
+  const notificationsReady=state.notifications.enabled&&state.notificationStatus?.display==="granted"&&(!state.notificationStatus.native||state.notificationStatus.exact==="granted");
   const icon=notificationsReady?"🔔":"⚠️";
   return `${icon} ${day} ${new Intl.DateTimeFormat("he-IL",{hour:"2-digit",minute:"2-digit"}).format(date)}`;
 }
@@ -516,13 +526,13 @@ async function saveTask(event) {
   try {
     const input=reminderInput();
     const reminder=state.editingTask?updateReminder(state.editingTask.reminder,input):createReminder(input);
-    const displayPermission=reminder.enabled?reminderService.permission(false):Promise.resolve(true);
+    const displayPermission=reminder.enabled&&state.notifications.enabled?reminderService.permission(false):Promise.resolve(true);
     let savedId=state.editingTask?.id||null;
     if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,updatedAt:serverTimestamp()});
     else savedId=await createTask(value,dueDate,dueTime,reminder);
     $("#taskDialog").close(); toast(t("saved"));
     offerCalendarDownload(value,dueDate,dueTime);
-    if(reminder.enabled) {
+    if(reminder.enabled&&state.notifications.enabled) {
       const allowed=await displayPermission;
       if(!allowed)throw new Error("המשימה נשמרה, אך Android חוסם התראות");
       if(window.MyTasksNative?.isNative)await reminderService.permission(true);
@@ -530,10 +540,10 @@ async function saveTask(event) {
     }
     if(savedId){
       const scheduled=await reminderService.scheduleNativeTask({id:savedId,text:value,reminder,completedAt:null,archivedAt:null});
-      if(reminder.enabled&&window.MyTasksNative?.isNative&&!scheduled.scheduled)throw new Error("המשימה נשמרה, אך התזכורת לא נרשמה ב־Android");
+      if(reminder.enabled&&state.notifications.enabled&&window.MyTasksNative?.isNative&&!scheduled.scheduled)throw new Error("המשימה נשמרה, אך התזכורת לא נרשמה ב־Android");
     }
     await refreshNotificationStatus(true);
-    if(reminder.enabled && (!("Notification" in window) || Notification.permission!=="granted"))toast("התזכורת נשמרה, אך התראות אינן מורשות במכשיר זה");
+    if(reminder.enabled && state.notifications.enabled && !window.MyTasksNative?.isNative && (!("Notification" in window) || Notification.permission!=="granted"))toast("התזכורת נשמרה, אך התראות אינן מורשות במכשיר זה");
   } catch(error) {console.error(error);toast(error.message||t("error"));}
   finally {saveButton.disabled=false;}
 }
@@ -543,16 +553,43 @@ function openSettings(){
   $(`[name="themeSetting"][value="${state.settings.theme}"]`).checked=true;
   $(`[name="workLanguageSetting"][value="${state.settings.areaLanguages.work}"]`).checked=true;
   $(`[name="privateLanguageSetting"][value="${state.settings.areaLanguages.private}"]`).checked=true;
+  $("#notificationsEnabledSetting").checked=state.notifications.enabled;
+  $("#vibrationSetting").checked=state.notifications.vibration;
+  $(`[name="soundSetting"][value="${state.notifications.sound}"]`).checked=true;
+  updateNotificationSettingsUi();
   $("#settingsDialog").showModal();
   refreshNotificationStatus();
 }
-function saveSettings(event){
+async function saveSettings(event){
   event.preventDefault();
   state.settings={theme:$("[name='themeSetting']:checked").value,areaLanguages:{work:$("[name='workLanguageSetting']:checked").value,private:$("[name='privateLanguageSetting']:checked").value}};
+  state.notifications={enabled:$("#notificationsEnabledSetting").checked,sound:$("[name='soundSetting']:checked").value,vibration:$("#vibrationSetting").checked};
+  localStorage.setItem(`my-tasks-notifications-${state.user.uid}`,JSON.stringify(state.notifications));
   localStorage.setItem("my-tasks-settings",JSON.stringify(state.settings));
   applySettings();
   $("#settingsDialog").close();
   render();toast(t("saved"));
+  try{
+    await publishNotificationPreferences();
+    await reminderService.syncNative();
+    if(state.notifications.enabled)await registerPushSubscription();
+    else if(!window.MyTasksNative?.isNative && "serviceWorker" in navigator){
+      const registration=await navigator.serviceWorker.ready;
+      const subscription=await registration.pushManager?.getSubscription();
+      if(subscription){
+        const endpointId=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(subscription.endpoint)).then(buffer=>[...new Uint8Array(buffer)].map(byte=>byte.toString(16).padStart(2,"0")).join(""));
+        await subscription.unsubscribe();
+        await deleteDoc(userDoc("pushSubscriptions",endpointId));
+      }
+    }
+    await refreshNotificationStatus(true);
+  }catch(error){console.error(error);toast("ההגדרות נשמרו; סנכרון ההתראות נכשל — נסה שוב");}
+}
+async function publishNotificationPreferences(){
+  if(!window.MyTasksNative?.isNative && "serviceWorker" in navigator){
+    const registration=await navigator.serviceWorker.ready;
+    (registration.active||navigator.serviceWorker.controller)?.postMessage({type:"notification-preferences",preferences:state.notifications});
+  }
 }
 async function requestNotificationPermission(){
   try{
@@ -726,6 +763,7 @@ $("#menuSettingsBtn").onclick=openSettings;
 $("#menuCategoriesBtn").onclick=openManageCategories;
 $("#requestNotificationPermissionBtn").onclick=requestNotificationPermission;
 $("#testNotificationBtn").onclick=testNotification;
+$("#previewSoundBtn").onclick=async()=>{try{await window.MyTasksNative.NotificationSettings.previewSound({sound:$("[name='soundSetting']:checked").value});}catch(error){toast(error.message||t("error"));}};
 $("#openNotificationSettingsBtn").onclick=openNotificationSettings;
 $("#openExactAlarmSettingsBtn").onclick=openExactAlarmSettings;
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
@@ -746,7 +784,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.4.8",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.4.9",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
