@@ -3,9 +3,9 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithCredential, 
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch, setStorageMode
-} from "./data-store.js?v=2.5.2";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.2";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.2";
+} from "./data-store.js?v=2.5.3";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.3";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.3";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -57,7 +57,7 @@ function loadSettings(){
 }
 const todayKey=new Date().toISOString().slice(0,10);
 const savedStorageMode=localStorage.getItem("my-tasks-storage-mode");
-const state = { storageMode:["local","cloud"].includes(savedStorageMode)?savedStorageMode:"choice", user:null, language:"he", settings:loadSettings(), notifications:{...notificationDefaults}, notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, reopenCategoryManager:false, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
+const state = { storageMode:["local","cloud"].includes(savedStorageMode)?savedStorageMode:"choice", user:null, language:"he", settings:loadSettings(), notifications:{...notificationDefaults}, notificationStatus:null, area:lastArea, view:"tasks", selected:savedCategory(lastArea), categories:[], tasks:[], categoriesLoaded:false, tasksLoaded:false, editingTask:null, editingCategory:null, movingTask:null, confirmAction:null, reopenCategoryManager:false, unsubs:[], dragging:false, categoriesExpanded:false, suppressCategoryClick:false, calendarMonth:new Date(new Date().getFullYear(),new Date().getMonth(),1), selectedCalendarDate:todayKey };
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const t = key => text[state.language][key] || key;
@@ -223,28 +223,40 @@ async function login() {
 }
 
 function startSync() {
-  state.tasksLoaded=false;
+  state.categoriesLoaded=false;state.tasksLoaded=false;
   state.unsubs.forEach(unsub=>unsub()); state.unsubs=[];
   state.unsubs.push(onSnapshot(userCollection("categories"), snapshot => {
     state.categories=snapshot.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.order||0)-(b.order||0));
     if (!state.categories.some(c=>c.id===state.selected&&c.area===state.area)) state.selected=state.categories.find(c=>c.id===savedCategory(state.area)&&c.area===state.area)?.id || state.categories.find(c=>c.area===state.area)?.id || "";
     if(state.selected)localStorage.setItem(`tasks-selected-${state.area}`,state.selected);
-    render();
-  }));
+    state.categoriesLoaded=true;finishStartupIfReady();
+  },syncFailed));
   state.unsubs.push(onSnapshot(userCollection("tasks"), snapshot => {
     state.tasks=snapshot.docs.map(d=>({id:d.id,...d.data()}));
     state.tasksLoaded=true;
-    render();reminderService.tick();handleNotificationRoute();
-  }));
+    finishStartupIfReady();reminderService.tick();handleNotificationRoute();
+  },syncFailed));
+}
+
+function finishStartupIfReady(){
+  if(!state.user||!state.categoriesLoaded||!state.tasksLoaded)return;
+  render();
+  $("#startup").classList.add("hidden");
+  $("#login").classList.add("hidden");
+  $("#app").classList.remove("hidden");
+}
+function syncFailed(error){
+  console.error(error);toast(t("error"));
+  state.categoriesLoaded=true;state.tasksLoaded=true;finishStartupIfReady();
 }
 
 async function activateSession(user,storageMode){
   reminderService.stop();state.unsubs.forEach(unsub=>unsub());state.unsubs=[];
   state.storageMode=storageMode;setStorageMode(storageMode);state.user=user;
-  state.categories=[];state.tasks=[];state.tasksLoaded=false;state.view="tasks";
-  $("#login").classList.toggle("hidden",!!user);
-  $("#app").classList.toggle("hidden",!user);
-  if(!user)return;
+  state.categories=[];state.tasks=[];state.categoriesLoaded=false;state.tasksLoaded=false;state.view="tasks";
+  $("#app").classList.add("hidden");
+  if(!user){$("#startup").classList.add("hidden");$("#login").classList.remove("hidden");return;}
+  $("#startup").classList.remove("hidden");$("#login").classList.add("hidden");
   $("#userName").textContent=storageMode==="local"?"שמירה מקומית":user.email||user.displayName||"";
   try{const saved=JSON.parse(localStorage.getItem(`my-tasks-notifications-${user.uid}`)||"{}");state.notifications={enabled:saved.enabled!==false,sound:soundChoices.includes(saved.sound)?saved.sound:"default",vibration:saved.vibration!==false};}catch{state.notifications={...notificationDefaults};}
   publishNotificationPreferences().catch(console.error);
@@ -819,13 +831,12 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.5.2",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.5.3",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
 applySettings();
-render();
 
 if(state.storageMode==="local")activateSession({uid:"local-device",displayName:"שמירה מקומית"},"local").catch(console.error);
-else if(state.storageMode==="cloud"){$("#login").classList.add("hidden");$("#app").classList.remove("hidden");}
-else{$("#login").classList.remove("hidden");$("#app").classList.add("hidden");}
+else if(state.storageMode==="cloud"){$("#startup").classList.remove("hidden");$("#login").classList.add("hidden");$("#app").classList.add("hidden");}
+else{$("#startup").classList.add("hidden");$("#login").classList.remove("hidden");$("#app").classList.add("hidden");}
