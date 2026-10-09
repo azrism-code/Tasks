@@ -30,7 +30,7 @@ await build({
 const indexPath = "www/index.html";
 let index = await readFile(indexPath, "utf8");
 index = index.replace(
-  '<script type="module" src="./app.js?v=2.5.2"></script>',
-  '<script type="module" src="./native-bridge.js"></script>\n  <script type="module" src="./app.js?v=2.5.2"></script>'
+  '<script type="module" src="./app.js?v=2.5.3"></script>',
+  '<script type="module" src="./native-bridge.js"></script>\n  <script type="module" src="./app.js?v=2.5.3"></script>'
 );
 await writeFile(indexPath, index);
