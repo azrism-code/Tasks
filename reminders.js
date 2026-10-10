@@ -1,4 +1,4 @@
-import { Timestamp, updateDoc, runTransaction } from "./data-store.js?v=2.5.3";
+import { Timestamp, updateDoc, runTransaction } from "./data-store.js?v=2.5.4";
 
 export const reminderDefaults = {
   enabled: false, dateTime: null, nextTriggerAt: null, timeZone: null, repeat: "none", customRepeat: { interval: 1, unit: "day" },
