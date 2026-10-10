@@ -3,9 +3,9 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithCredential, 
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch, setStorageMode
-} from "./data-store.js?v=2.5.3";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.3";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.3";
+} from "./data-store.js?v=2.5.4";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.4";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.4";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -831,7 +831,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.5.3",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.5.4",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
