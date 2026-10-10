@@ -346,6 +346,44 @@ html[data-theme="dark"] #settingsForm .segmented-control span{color:#b7c5d9}
 html[data-theme="dark"] #settingsForm .segmented-control input:checked+span{color:#fff}
 .mobile-header .platform-badge{color:#b8c9e0;border-color:#59708e}
 
+/* Tablet layout: keep the phone experience intact while using the wider canvas. */
+@media (min-width:761px) and (max-width:1100px){
+  .sidebar{display:none}
+  .workspace{width:100%;margin:0}
+  .mobile-header{position:sticky;top:0;z-index:40;height:68px;padding:0 26px;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center}
+  .mobile-header .brand{font-size:1.18rem}
+  .mobile-header .brand-logo{width:38px;height:38px}
+  .mobile-header .icon-btn{position:absolute;inset-inline-end:20px;top:15px;color:#fff;font-size:1.5rem}
+  .content{width:min(860px,calc(100% - 48px));padding:20px 0 104px}
+  .desktop-toolbar{display:none}
+  .mobile-area-switch{display:flex;justify-content:center;gap:10px;margin:0 auto 16px}
+  .mobile-area-switch button{min-width:150px;min-height:46px;border:1px solid var(--line);border-radius:13px;background:var(--surface);color:#68768b;padding:0 22px;font-weight:700}
+  .mobile-area-switch button.active{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 16px #2563EB35;font-weight:800}
+  .mobile-area-switch button[data-area="private"].active{background:var(--private);border-color:var(--private);box-shadow:0 6px 16px #7C3AED35}
+  .category-strip{padding:0 4px}
+  .category-tabs{justify-content:center;max-height:82px;margin-top:0;gap:7px}
+  .category-tab{min-height:40px;padding:7px 12px}
+  .category-tab.active{padding:7px 12px}
+  .compact-list-heading{margin:10px 4px 10px}
+  .task-list{gap:12px}
+  .task-card{min-height:78px;padding:14px 16px;border-radius:17px}
+  .task-copy p{font-size:1.06rem}
+  .fab{display:grid;place-items:center;position:fixed;inset-inline-end:32px;bottom:max(28px,env(safe-area-inset-bottom));width:60px;height:60px;border:0;border-radius:19px;background:var(--blue);color:#fff;font-size:1.8rem;box-shadow:0 12px 30px #2563EB55}
+  .app-menu{min-width:210px}
+  dialog{width:min(560px,calc(100% - 64px))}
+  .manage-categories-dialog{width:min(600px,calc(100% - 64px))}
+  .calendar-view{max-width:760px;margin:auto}
+  .native-app .mobile-header{height:calc(68px + max(env(safe-area-inset-top),24px));padding-top:max(env(safe-area-inset-top),24px)}
+  .native-app .mobile-header .app-menu-btn{top:calc(15px + max(env(safe-area-inset-top),24px))}
+}
+
+@media (min-width:761px) and (max-width:1100px) and (orientation:landscape){
+  .content{width:min(940px,calc(100% - 64px));padding-top:16px}
+  .mobile-area-switch{margin-bottom:12px}
+  .category-tabs{max-height:78px}
+  .task-card{min-height:72px}
+}
+
 .login-options{display:grid;gap:10px}
 .local-login-note{display:block;margin-top:14px;color:var(--muted);font-size:.76rem;line-height:1.5}
 .storage-mode-label{display:block;padding:8px 12px;color:var(--muted);font-size:.7rem;border-top:1px solid var(--line)}
