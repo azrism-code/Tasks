@@ -3,9 +3,9 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithCredential, 
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch, setStorageMode
-} from "./data-store.js?v=2.5.6";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.6";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.6";
+} from "./data-store.js?v=2.5.7";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.7";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.7";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -148,7 +148,8 @@ function setVoiceButton(listening){
   const button=$("#voiceTaskBtn");
   button.classList.toggle("listening",listening);
   const english=contentLanguage()==="en";
-  button.innerHTML=listening?`⏹️ <span>${english?"Stop":"עצור"}</span>`:`🎙️ <span>${english?"Record":"הקלט"}</span>`;
+  button.setAttribute("aria-label",listening?(english?"Stop recording":"עצירת הקלטה"):(english?"Record":"הקלטה"));
+  button.title=button.getAttribute("aria-label");
 }
 
 function initVoiceInput(){
@@ -540,9 +541,10 @@ function updateScheduleSummary() {
   const time=$("#taskTime").value;
   const summary=$("#scheduleSummary");
   if(!summary)return;
-  if(!date){summary.innerHTML='<span class="task-option-icon">📅</span><span>תאריך ושעה</span>';return;}
+  if(!date){summary.innerHTML='<svg class="task-option-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M8 3v4M16 3v4M3 10h18"></path></svg>';summary.setAttribute("aria-label","תאריך ושעה");summary.title="תאריך ושעה";return;}
   const [year,month,day]=date.split("-");
-  summary.innerHTML=`<span class="task-option-icon">📅</span><span>${day}/${month}/${year}${time?` · ${time}`:""}</span>`;
+  summary.innerHTML='<svg class="task-option-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M8 3v4M16 3v4M3 10h18"></path></svg>';
+  summary.setAttribute("aria-label",`תאריך ${day}/${month}/${year}${time?` בשעה ${time}`:""}`);summary.title=summary.getAttribute("aria-label");
 }
 
 function escapeCalendarText(value="") {
@@ -844,7 +846,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.5.6",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.5.7",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
