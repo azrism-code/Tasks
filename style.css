@@ -346,20 +346,21 @@ html[data-theme="dark"] #settingsForm .segmented-control span{color:#b7c5d9}
 html[data-theme="dark"] #settingsForm .segmented-control input:checked+span{color:#fff}
 .mobile-header .platform-badge{color:#b8c9e0;border-color:#59708e}
 
-/* v2.5.6: refreshed task entry and settings only; main screen is unchanged. */
+/* v2.5.7: compact icon-only task actions; main screen is unchanged. */
 #taskDialog #taskForm{padding:18px}
 #taskDialog #taskText{min-height:104px;resize:vertical;background:var(--surface);font-size:1.05rem}
 .task-option-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
 .task-option-grid .voice-entry{display:block;margin:0}
-.task-option-button,.task-option-details>summary{min-height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;border:1px solid var(--line);border-radius:13px;background:var(--surface-soft);color:var(--ink);font-size:.78rem;font-weight:700;text-align:center;cursor:pointer;padding:7px}
-.task-option-icon{font-size:1.25rem;line-height:1}
+.task-option-button,.task-option-details>summary{height:52px;min-height:52px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line);border-radius:13px;background:var(--surface-soft);color:#4f46e5;cursor:pointer;padding:8px}
+.task-option-icon{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .task-option-grid .voice-dialog-btn{width:100%;padding:7px}
-.task-option-grid .voice-entry small{display:block;margin-top:5px;font-size:.68rem;color:var(--muted)}
+.task-option-grid .voice-entry small{position:absolute;inset-inline:0;top:56px;text-align:center;font-size:.68rem;color:var(--muted);white-space:nowrap}
+.task-option-grid .voice-entry{position:relative}
 .task-option-details{display:block;margin:0;padding:0;border:0;background:transparent}
 .task-option-details>summary{list-style:none}
 .task-option-details>summary::-webkit-details-marker{display:none}
 .task-option-details[open]{grid-column:1/-1;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
-.task-option-details[open]>summary{min-height:45px;flex-direction:row;border:0;border-bottom:1px solid var(--line);border-radius:13px 13px 0 0}
+.task-option-details[open]>summary{height:45px;min-height:45px;border:0;border-bottom:1px solid var(--line);border-radius:13px 13px 0 0}
 .task-option-details .task-schedule{padding:0 12px 12px}
 .task-option-details.reminder-editor{padding:0}
 .task-option-details.reminder-editor>.reminder-switch,.task-option-details.reminder-editor>#reminderFields{margin-inline:12px}
@@ -387,10 +388,9 @@ html[data-theme="dark"] #settingsForm .segmented-control input:checked+span{colo
   #taskDialog #taskForm{max-height:92dvh;overflow:auto;padding-bottom:max(18px,env(safe-area-inset-bottom))}
 }
 @media(max-width:520px){
-  .task-option-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
-  .task-option-button,.task-option-details>summary{min-height:52px;flex-direction:row;font-size:.76rem;padding:7px}
-  .task-option-details[open]{grid-column:1/-1}
-  .urgent-task-option{justify-self:stretch}
+  .task-option-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+  .task-option-button,.task-option-details>summary{height:48px;min-height:48px;padding:6px}
+  .task-option-icon{width:23px;height:23px}
   #taskDialog footer .task-save-hint{width:100%;margin-bottom:2px}
 }
 
