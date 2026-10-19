@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1E3A5F">
   <meta name="description" content="My Tasks">
-  <link rel="manifest" href="./manifest.webmanifest?v=2.5.4">
-  <link rel="icon" href="./icon.svg?v=2.5.4" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=2.5.4">
-  <title>My Tasks v2.5.4</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=2.5.5">
+  <link rel="icon" href="./icon.svg?v=2.5.5" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=2.5.5">
+  <title>My Tasks v2.5.5</title>
 </head>
 <body>
   <div id="startup" class="startup-screen" aria-label="טוען את המשימות">
-    <img class="startup-logo" src="./header-logo.svg?v=2.5.4" alt="My Tasks">
+    <img class="startup-logo" src="./header-logo.svg?v=2.5.5" alt="My Tasks">
   </div>
   <div id="login" class="login-screen hidden">
     <div class="login-card">
-      <img class="brand-logo" src="./header-logo.svg?v=2.5.4" alt="My Tasks">
+      <img class="brand-logo" src="./header-logo.svg?v=2.5.5" alt="My Tasks">
       <h1>My Tasks</h1>
       <p>המשימות שלך, פשוט ובכל מקום.</p>
       <div class="login-options"><button id="loginBtn" class="primary-btn">Google · שמירה בענן</button><button id="localLoginBtn" class="secondary-btn">כניסה מקומית ללא חשבון</button></div>
@@ -26,7 +26,7 @@
 
   <main id="app" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.5.4" alt=""><span>My Tasks</span><small class="version">v2.5.4</small><small class="platform-badge">PWA</small></div>
+      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.5.5" alt=""><span>My Tasks</span><small class="version">v2.5.5</small><small class="platform-badge">PWA</small></div>
       <p class="side-label" data-i18n="areas">Areas</p>
       <nav class="area-nav">
         <button data-area="work" class="active"><span aria-hidden="true">💼</span> <span data-i18n="work">Work</span><b id="workCount">0</b></button>
@@ -38,7 +38,7 @@
 
     <section class="workspace">
       <header class="mobile-header">
-        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.5.4" alt=""><span>My Tasks</span><small class="version">v2.5.4</small><small class="platform-badge">PWA</small></div>
+        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.5.5" alt=""><span>My Tasks</span><small class="version">v2.5.5</small><small class="platform-badge">PWA</small></div>
         <button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button>
       </header>
       <div class="content">
@@ -78,22 +78,25 @@
   <dialog id="taskDialog">
     <form method="dialog" id="taskForm">
       <header><div><h2 id="taskDialogTitle">New task</h2><p id="taskDialogCategory"></p></div><button type="button" data-close-dialog="taskDialog" class="close-btn">×</button></header>
-      <textarea id="taskText" rows="5" required></textarea>
-      <div class="voice-entry"><button id="voiceTaskBtn" type="button" class="voice-dialog-btn">🎙️ <span>הקלט</span></button><small id="voiceStatus" aria-live="polite"></small></div>
-      <details class="schedule-editor" id="scheduleEditor">
-        <summary id="scheduleSummary">📅 הוסף תאריך ושעה</summary>
+      <textarea id="taskText" rows="4" required placeholder="מה צריך לעשות?"></textarea>
+      <div class="task-option-grid">
+        <div class="voice-entry"><button id="voiceTaskBtn" type="button" class="task-option-button voice-dialog-btn"><span class="task-option-icon">🎙️</span><span>הקלט</span></button><small id="voiceStatus" aria-live="polite"></small></div>
+        <details class="schedule-editor task-option-details" id="scheduleEditor">
+        <summary id="scheduleSummary"><span class="task-option-icon">📅</span><span>תאריך ושעה</span></summary>
         <div class="task-schedule"><label>תאריך<input id="taskDate" type="date"></label><label>שעה<input id="taskTime" type="time"></label></div>
       </details>
-      <details class="reminder-editor" id="reminderEditor"><summary>🔔 תזכורת (אופציונלי)</summary>
+      <details class="reminder-editor task-option-details" id="reminderEditor"><summary><span class="task-option-icon">🔔</span><span>תזכורת</span></summary>
         <label class="reminder-switch"><input id="reminderEnabled" type="checkbox"> הפעל תזכורת</label>
         <div id="reminderFields" class="hidden">
           <div class="task-schedule"><label>תאריך תזכורת<input id="reminderDate" type="date"></label><label>שעה<input id="reminderTime" type="time"></label></div>
           <div class="task-schedule"><label>חזרה<select id="reminderRepeat"><option value="none">ללא חזרה</option><option value="daily">כל יום</option><option value="weekly">כל שבוע</option><option value="monthly">כל חודש</option><option value="custom">מותאמת אישית</option></select></label>
           <label>רמת התראה<select id="reminderLevel"><option value="normal">רגיל</option><option value="important">חשוב</option><option value="critical">קריטי (מוגבל ב־PWA)</option></select></label></div>
           <div id="customRepeatFields" class="task-schedule hidden"><label>כל כמה<input id="customInterval" type="number" min="1" max="365" value="1"></label><label>יחידות<select id="customUnit"><option value="day">ימים</option><option value="week">שבועות</option><option value="month">חודשים</option></select></label></div>
-          <small class="reminder-note">ב־Android התזכורת תפעל גם כשהאפליקציה סגורה. בגרסת הדפדפן התראות ברקע אינן מובטחות.</small>
+          <small class="reminder-note">ב־PWA התראות ברקע תלויות בדפדפן ובמערכת ההפעלה ואינן מובטחות כשהאפליקציה סגורה.</small>
         </div>
       </details>
+        <label class="task-option-button urgent-task-option"><input id="taskUrgent" type="checkbox"><span class="task-option-icon">🚩</span><span>דחוף</span></label>
+      </div>
       <footer><button type="button" data-close-dialog="taskDialog" class="secondary-btn" data-i18n="cancel">Cancel</button><button id="saveTaskBtn" type="submit" class="primary-btn" data-i18n="save">Save</button></footer>
     </form>
   </dialog>
@@ -134,16 +137,15 @@
     <form method="dialog" id="settingsForm">
       <header><div><h2>הגדרות</h2><p>תצוגה, שפה והתראות</p></div><button type="button" data-close-dialog="settingsDialog" class="close-btn">×</button></header>
       <div class="settings-fields">
-        <fieldset><legend>תצוגה</legend><div class="segmented-control"><label><input type="radio" name="themeSetting" value="light"><span>☀️ בהיר</span></label><label><input type="radio" name="themeSetting" value="dark"><span>🌙 כהה</span></label></div></fieldset>
-        <fieldset><legend>שפת התוכן בעבודה</legend><div class="segmented-control"><label><input type="radio" name="workLanguageSetting" value="he"><span>עברית</span></label><label><input type="radio" name="workLanguageSetting" value="en"><span>English</span></label></div></fieldset>
-        <fieldset><legend>שפת התוכן בפרטי</legend><div class="segmented-control"><label><input type="radio" name="privateLanguageSetting" value="he"><span>עברית</span></label><label><input type="radio" name="privateLanguageSetting" value="en"><span>English</span></label></div></fieldset>
+        <fieldset class="settings-section"><legend>תצוגה</legend><div class="segmented-control three-options"><label><input type="radio" name="themeSetting" value="light"><span>☀️ בהיר</span></label><label><input type="radio" name="themeSetting" value="dark"><span>🌙 כהה</span></label><label><input type="radio" name="themeSetting" value="system"><span>לפי המכשיר</span></label></div></fieldset>
+        <fieldset class="settings-section"><legend>שפת התוכן</legend><div class="language-setting-row"><strong>פרטי</strong><div class="segmented-control"><label><input type="radio" name="privateLanguageSetting" value="he"><span>עברית</span></label><label><input type="radio" name="privateLanguageSetting" value="en"><span>English</span></label></div></div><div class="language-setting-row"><strong>עבודה</strong><div class="segmented-control"><label><input type="radio" name="workLanguageSetting" value="he"><span>עברית</span></label><label><input type="radio" name="workLanguageSetting" value="en"><span>English</span></label></div></div></fieldset>
         <section class="notification-settings-card">
           <div><strong>התראות וצלילים</strong><span id="notificationStatus" class="notification-status">בודק הרשאות…</span></div>
           <div class="settings-row"><span>התראות במכשיר זה</span><label class="settings-toggle"><input id="notificationsEnabledSetting" type="checkbox" aria-label="התראות במכשיר זה"><span></span></label></div>
           <small id="notificationSource"></small>
-          <fieldset id="nativeSoundSettings" class="hidden"><legend>צליל התראה</legend><div class="sound-chips"><label><input type="radio" name="soundSetting" value="default"><span>ברירת מחדל</span></label><label><input type="radio" name="soundSetting" value="gentle"><span>עדין</span></label><label><input type="radio" name="soundSetting" value="normal"><span>רגיל</span></label><label><input type="radio" name="soundSetting" value="loud"><span>חזק</span></label><label><input type="radio" name="soundSetting" value="bell"><span>פעמון</span></label><label><input type="radio" name="soundSetting" value="alarm"><span>אזעקה</span></label><label><input type="radio" name="soundSetting" value="silent"><span>ללא צליל</span></label></div>
-          <div class="settings-row"><span>רטט</span><label class="settings-toggle"><input id="vibrationSetting" type="checkbox" aria-label="רטט"><span></span></label><button id="previewSoundBtn" type="button" class="secondary-btn">▶ השמעה</button></div></fieldset>
-          <small id="pwaSoundHelp">ב־PWA הצליל והרטט נקבעים בהגדרות הטלפון והדפדפן.</small>
+          <fieldset id="nativeSoundSettings" class="hidden"><legend>צליל התראה</legend><div class="sound-chips"><label><input type="radio" name="soundSetting" value="default"><span>ברירת מחדל</span></label><label><input type="radio" name="soundSetting" value="gentle"><span>עדין</span></label><label><input type="radio" name="soundSetting" value="normal"><span>רגיל</span></label><label><input type="radio" name="soundSetting" value="loud"><span>חזק</span></label><label><input type="radio" name="soundSetting" value="bell"><span>פעמון</span></label><label><input type="radio" name="soundSetting" value="alarm"><span>אזעקה</span></label><label><input type="radio" name="soundSetting" value="silent"><span>ללא צליל</span></label></div><button id="previewSoundBtn" type="button" class="secondary-btn">▶ השמעה</button></fieldset>
+          <div class="settings-row pwa-sound-row"><span><b>צליל התראה</b><small id="pwaSoundHelp">נקבע בהגדרות הטלפון והדפדפן</small></span><span aria-hidden="true">›</span></div>
+          <div class="settings-row"><span>רטט</span><label class="settings-toggle"><input id="vibrationSetting" type="checkbox" aria-label="רטט"><span></span></label></div>
           <div class="notification-settings-actions"><button id="requestNotificationPermissionBtn" type="button" class="secondary-btn">אפשר התראות</button><button id="testNotificationBtn" type="button" class="secondary-btn">שלח בדיקה</button><button id="openNotificationSettingsBtn" type="button" class="secondary-btn hidden">פתח הגדרות Android</button><button id="openExactAlarmSettingsBtn" type="button" class="secondary-btn hidden">אפשר תזכורות מדויקות</button></div>
           <small id="notificationHelp">בדיקת ההתראה תופיע בתוך כחמש שניות.</small>
         </section>
@@ -154,6 +156,6 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="./app.js?v=2.5.4"></script>
+  <script type="module" src="./app.js?v=2.5.5"></script>
 </body>
 </html>
