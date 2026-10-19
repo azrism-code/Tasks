@@ -3,9 +3,9 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithCredential, 
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch, setStorageMode
-} from "./data-store.js?v=2.5.4";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.4";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.4";
+} from "./data-store.js?v=2.5.5";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.5";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.5";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -47,7 +47,7 @@ function loadSettings(){
   try{
     const saved=JSON.parse(localStorage.getItem("my-tasks-settings")||"{}");
     return {
-      theme:["light","dark"].includes(saved.theme)?saved.theme:defaultSettings.theme,
+      theme:["light","dark","system"].includes(saved.theme)?saved.theme:defaultSettings.theme,
       areaLanguages:{
         work:["he","en"].includes(saved.areaLanguages?.work)?saved.areaLanguages.work:defaultSettings.areaLanguages.work,
         private:["he","en"].includes(saved.areaLanguages?.private)?saved.areaLanguages.private:defaultSettings.areaLanguages.private
@@ -64,7 +64,10 @@ const t = key => text[state.language][key] || key;
 const isHebrew = value => /[\u0590-\u05FF]/.test(value);
 const contentLanguage = area => state.settings.areaLanguages[area||state.area];
 const contentDirection = area => contentLanguage(area)==="he"?"rtl":"ltr";
-function applySettings(){document.documentElement.dataset.theme=state.settings.theme;document.documentElement.style.colorScheme=state.settings.theme;}
+function applySettings(){
+  const theme=state.settings.theme==="system"?(matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"):state.settings.theme;
+  document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme;
+}
 const isArchived = task => !!task.archivedAt || (!!task.completedAt && task.archivedAt===undefined);
 const userCollection = name => collection(db,"users",state.user.uid,name);
 const userDoc = (name,id) => doc(db,"users",state.user.uid,name,id);
@@ -100,7 +103,7 @@ function updateNotificationSettingsUi(){
   const status=state.notificationStatus;
   const native=!!window.MyTasksNative?.isNative;
   $("#nativeSoundSettings").classList.toggle("hidden",!native);
-  $("#pwaSoundHelp").classList.toggle("hidden",native);
+  $(".pwa-sound-row").classList.toggle("hidden",native);
   $("#notificationHelp").textContent=state.storageMode==="local"&&!native?"במצב מקומי תזכורות PWA פועלות כשהאפליקציה פתוחה. ב־APK הן מתוזמנות גם כשהוא סגור.":"בדיקת ההתראה תופיע בתוך כחמש שניות.";
   $("#notificationSource").textContent=native?"מקור ההתראה: APK · ההגדרה חלה על התקנה זו":"מקור ההתראה: PWA · ההגדרה חלה על דפדפן זה";
   label.textContent=notificationStatusLabel(status);
@@ -495,6 +498,7 @@ function openTask(task=null,presetDate="") {
   $("#taskDialogTitle").textContent=task?t("editTask"):t("newTask");
   $("#taskDialogCategory").textContent=category?.name||"";
   $("#taskText").value=task?.text||""; $("#taskText").placeholder=t("taskPlaceholder"); $("#taskText").dir=contentDirection(); $("#taskText").lang=contentLanguage();
+  $("#taskUrgent").checked=!!task?.urgent;
   $("#taskDate").value=task?.dueDate||presetDate||"";$("#taskTime").value=task?.dueTime||"";
   $("#scheduleEditor").open=false;
   updateScheduleSummary();
@@ -510,9 +514,9 @@ function openTask(task=null,presetDate="") {
   resetVoiceInput();
   $("#taskDialog").showModal(); setTimeout(()=>$("#taskText").focus(),50);
 }
-async function createTask(value,dueDate,dueTime,reminder){
+async function createTask(value,dueDate,dueTime,reminder,urgent=false){
   const maxOrder=Math.max(0,...state.tasks.filter(x=>x.categoryId===state.selected&&!x.completedAt).map(x=>x.order||0));
-  const created=await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent:false,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,createdAt:serverTimestamp(),completedAt:null,archivedAt:null});
+  const created=await addDoc(userCollection("tasks"),{text:value,area:state.area,categoryId:state.selected,order:maxOrder+1000,urgent,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,createdAt:serverTimestamp(),completedAt:null,archivedAt:null});
   return created.id;
 }
 
@@ -528,9 +532,9 @@ function updateScheduleSummary() {
   const time=$("#taskTime").value;
   const summary=$("#scheduleSummary");
   if(!summary)return;
-  if(!date){summary.textContent="📅 הוסף תאריך ושעה";return;}
+  if(!date){summary.innerHTML='<span class="task-option-icon">📅</span><span>תאריך ושעה</span>';return;}
   const [year,month,day]=date.split("-");
-  summary.textContent=`📅 ${day}/${month}/${year}${time?` · ${time}`:""}`;
+  summary.innerHTML=`<span class="task-option-icon">📅</span><span>${day}/${month}/${year}${time?` · ${time}`:""}</span>`;
 }
 
 function escapeCalendarText(value="") {
@@ -576,14 +580,15 @@ function offerCalendarDownload(title,dueDate,dueTime) {
 async function saveTask(event) {
   event.preventDefault(); const value=$("#taskText").value.trim(); if(!value)return;
   const dueDate=$("#taskDate").value,dueTime=$("#taskTime").value;
+  const urgent=$("#taskUrgent").checked;
   const saveButton=$("#saveTaskBtn"); saveButton.disabled=true;
   try {
     const input=reminderInput();
     const reminder=state.editingTask?updateReminder(state.editingTask.reminder,input):createReminder(input);
     const displayPermission=reminder.enabled&&state.notifications.enabled?reminderService.permission(false):Promise.resolve(true);
     let savedId=state.editingTask?.id||null;
-    if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,updatedAt:serverTimestamp()});
-    else savedId=await createTask(value,dueDate,dueTime,reminder);
+    if(state.editingTask) await updateDoc(userDoc("tasks",state.editingTask.id),{text:value,urgent,dueDate:dueDate||null,dueTime:dueDate?(dueTime||null):null,reminder,updatedAt:serverTimestamp()});
+    else savedId=await createTask(value,dueDate,dueTime,reminder,urgent);
     $("#taskDialog").close(); toast(t("saved"));
     offerCalendarDownload(value,dueDate,dueTime);
     if(reminder.enabled&&state.notifications.enabled) {
@@ -831,7 +836,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.5.4",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.5.5",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
