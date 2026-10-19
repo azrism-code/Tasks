@@ -1,4 +1,4 @@
-const CACHE = "azri-tasks-v49";
+const CACHE = "azri-tasks-v50";
 const PREFERENCES_CACHE="my-tasks-notification-preferences";
 const PREFERENCES_URL=new URL("./notification-preferences",self.location).href;
 self.addEventListener("message",event=>{
@@ -7,14 +7,14 @@ self.addEventListener("message",event=>{
 const FILES = [
   "./",
   "./index.html",
-  "./style.css?v=2.5.4",
-  "./app.js?v=2.5.4",
-  "./data-store.js?v=2.5.4",
-  "./reminders.js?v=2.5.4",
-  "./firebase-config.js?v=2.5.4",
-  "./manifest.webmanifest?v=2.5.4",
-  "./icon.svg?v=2.5.4",
-  "./header-logo.svg?v=2.5.4"
+  "./style.css?v=2.5.5",
+  "./app.js?v=2.5.5",
+  "./data-store.js?v=2.5.5",
+  "./reminders.js?v=2.5.5",
+  "./firebase-config.js?v=2.5.5",
+  "./manifest.webmanifest?v=2.5.5",
+  "./icon.svg?v=2.5.5",
+  "./header-logo.svg?v=2.5.5"
 ];
 
 self.addEventListener("install", event => {
