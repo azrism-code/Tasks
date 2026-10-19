@@ -346,7 +346,7 @@ html[data-theme="dark"] #settingsForm .segmented-control span{color:#b7c5d9}
 html[data-theme="dark"] #settingsForm .segmented-control input:checked+span{color:#fff}
 .mobile-header .platform-badge{color:#b8c9e0;border-color:#59708e}
 
-/* v2.5.5: refreshed task entry and settings only; main screen is unchanged. */
+/* v2.5.6: refreshed task entry and settings only; main screen is unchanged. */
 #taskDialog #taskForm{padding:18px}
 #taskDialog #taskText{min-height:104px;resize:vertical;background:var(--surface);font-size:1.05rem}
 .task-option-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
@@ -366,7 +366,9 @@ html[data-theme="dark"] #settingsForm .segmented-control input:checked+span{colo
 .urgent-task-option{position:relative}
 .urgent-task-option input{position:absolute;opacity:0;pointer-events:none}
 .urgent-task-option:has(input:checked){background:#fff1f1;border-color:#f28c8c;color:#c63232}
-#taskDialog footer{border-top:1px solid var(--line);padding-top:12px}
+#taskDialog .voice-dialog-btn.listening{background:#fff1f1;border-color:#ef6b6b;color:#bd2626;box-shadow:0 0 0 3px #ef444425}
+#taskDialog footer{border-top:1px solid var(--line);padding-top:12px;flex-wrap:wrap}
+.task-save-hint{margin-inline-end:auto;color:var(--muted);font-size:.7rem}
 #taskDialog #saveTaskBtn{min-width:132px}
 .settings-section,.notification-settings-card{border:1px solid var(--line)!important;border-radius:14px!important;padding:12px!important;background:var(--surface)!important}
 .settings-section>legend{padding:0 5px;margin-inline-start:4px}
@@ -384,7 +386,13 @@ html[data-theme="dark"] #settingsForm .segmented-control input:checked+span{colo
   #taskDialog[open]{position:fixed;inset:auto 0 0}
   #taskDialog #taskForm{max-height:92dvh;overflow:auto;padding-bottom:max(18px,env(safe-area-inset-bottom))}
 }
-@media(max-width:420px){.task-option-button,.task-option-details>summary{font-size:.7rem;padding-inline:3px}.task-option-grid{gap:5px}}
+@media(max-width:520px){
+  .task-option-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .task-option-button,.task-option-details>summary{min-height:52px;flex-direction:row;font-size:.76rem;padding:7px}
+  .task-option-details[open]{grid-column:1/-1}
+  .urgent-task-option{justify-self:stretch}
+  #taskDialog footer .task-save-hint{width:100%;margin-bottom:2px}
+}
 
 /* Tablet layout: keep the phone experience intact while using the wider canvas. */
 @media (min-width:761px) and (max-width:1100px){
