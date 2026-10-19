@@ -5,18 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#1E3A5F">
   <meta name="description" content="My Tasks">
-  <link rel="manifest" href="./manifest.webmanifest?v=2.5.6">
-  <link rel="icon" href="./icon.svg?v=2.5.6" type="image/svg+xml">
-  <link rel="stylesheet" href="./style.css?v=2.5.6">
-  <title>My Tasks v2.5.6</title>
+  <link rel="manifest" href="./manifest.webmanifest?v=2.5.7">
+  <link rel="icon" href="./icon.svg?v=2.5.7" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css?v=2.5.7">
+  <title>My Tasks v2.5.7</title>
 </head>
 <body>
   <div id="startup" class="startup-screen" aria-label="טוען את המשימות">
-    <img class="startup-logo" src="./header-logo.svg?v=2.5.6" alt="My Tasks">
+    <img class="startup-logo" src="./header-logo.svg?v=2.5.7" alt="My Tasks">
   </div>
   <div id="login" class="login-screen hidden">
     <div class="login-card">
-      <img class="brand-logo" src="./header-logo.svg?v=2.5.6" alt="My Tasks">
+      <img class="brand-logo" src="./header-logo.svg?v=2.5.7" alt="My Tasks">
       <h1>My Tasks</h1>
       <p>המשימות שלך, פשוט ובכל מקום.</p>
       <div class="login-options"><button id="loginBtn" class="primary-btn">Google · שמירה בענן</button><button id="localLoginBtn" class="secondary-btn">כניסה מקומית ללא חשבון</button></div>
@@ -26,7 +26,7 @@
 
   <main id="app" class="app-shell hidden">
     <aside class="sidebar">
-      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.5.6" alt=""><span>My Tasks</span><small class="version">v2.5.6</small><small class="platform-badge">PWA</small></div>
+      <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.5.7" alt=""><span>My Tasks</span><small class="version">v2.5.7</small><small class="platform-badge">PWA</small></div>
       <p class="side-label" data-i18n="areas">Areas</p>
       <nav class="area-nav">
         <button data-area="work" class="active"><span aria-hidden="true">💼</span> <span data-i18n="work">Work</span><b id="workCount">0</b></button>
@@ -38,7 +38,7 @@
 
     <section class="workspace">
       <header class="mobile-header">
-        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.5.6" alt=""><span>My Tasks</span><small class="version">v2.5.6</small><small class="platform-badge">PWA</small></div>
+        <div class="brand"><img class="brand-logo" src="./header-logo.svg?v=2.5.7" alt=""><span>My Tasks</span><small class="version">v2.5.7</small><small class="platform-badge">PWA</small></div>
         <button class="app-menu-btn icon-btn" aria-label="Menu">⋮</button>
       </header>
       <div class="content">
@@ -80,12 +80,12 @@
       <header><div><h2 id="taskDialogTitle">New task</h2><p id="taskDialogCategory"></p></div><button type="button" data-close-dialog="taskDialog" class="close-btn">×</button></header>
       <textarea id="taskText" rows="4" required placeholder="מה צריך לעשות?"></textarea>
       <div class="task-option-grid">
-        <div class="voice-entry"><button id="voiceTaskBtn" type="button" class="task-option-button voice-dialog-btn"><span class="task-option-icon">🎙️</span><span>הקלט</span></button><small id="voiceStatus" aria-live="polite"></small></div>
+        <div class="voice-entry"><button id="voiceTaskBtn" type="button" class="task-option-button voice-dialog-btn" aria-label="הקלטה" title="הקלטה"><svg class="task-option-icon mic-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="3" width="8" height="12" rx="4"></rect><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8.5 21h7"></path></svg></button><small id="voiceStatus" aria-live="polite"></small></div>
         <details class="schedule-editor task-option-details" id="scheduleEditor">
-        <summary id="scheduleSummary"><span class="task-option-icon">📅</span><span>תאריך ושעה</span></summary>
+        <summary id="scheduleSummary" aria-label="תאריך ושעה" title="תאריך ושעה"><svg class="task-option-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"></rect><path d="M8 3v4M16 3v4M3 10h18"></path></svg></summary>
         <div class="task-schedule"><label>תאריך<input id="taskDate" type="date"></label><label>שעה<input id="taskTime" type="time"></label></div>
       </details>
-      <details class="reminder-editor task-option-details" id="reminderEditor"><summary><span class="task-option-icon">🔔</span><span>תזכורת</span></summary>
+      <details class="reminder-editor task-option-details" id="reminderEditor"><summary aria-label="תזכורת" title="תזכורת"><svg class="task-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"></path></svg></summary>
         <label class="reminder-switch"><input id="reminderEnabled" type="checkbox"> הפעל תזכורת</label>
         <div id="reminderFields" class="hidden">
           <div class="task-schedule"><label>תאריך תזכורת<input id="reminderDate" type="date"></label><label>שעה<input id="reminderTime" type="time"></label></div>
@@ -95,7 +95,7 @@
           <small class="reminder-note">ב־PWA התראות ברקע תלויות בדפדפן ובמערכת ההפעלה ואינן מובטחות כשהאפליקציה סגורה.</small>
         </div>
       </details>
-        <label class="task-option-button urgent-task-option"><input id="taskUrgent" type="checkbox"><span class="task-option-icon">🚩</span><span>דחוף</span></label>
+        <label class="task-option-button urgent-task-option" aria-label="דחוף" title="דחוף"><input id="taskUrgent" type="checkbox"><svg class="task-option-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4M5 5h11l-2 4 2 4H5"></path></svg></label>
       </div>
       <footer><small id="taskSaveHint" class="task-save-hint" aria-live="polite"></small><button type="button" data-close-dialog="taskDialog" class="secondary-btn" data-i18n="cancel">Cancel</button><button id="saveTaskBtn" type="submit" class="primary-btn" data-i18n="save">Save</button></footer>
     </form>
@@ -156,6 +156,6 @@
   </dialog>
 
   <div id="toast" class="toast"></div>
-  <script type="module" src="./app.js?v=2.5.6"></script>
+  <script type="module" src="./app.js?v=2.5.7"></script>
 </body>
 </html>
