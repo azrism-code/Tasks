@@ -3,9 +3,9 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithCredential, 
 import {
   getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
   onSnapshot, serverTimestamp, writeBatch, setStorageMode
-} from "./data-store.js?v=2.5.5";
-import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.5";
-import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.5";
+} from "./data-store.js?v=2.5.6";
+import { firebaseConfig, webPushPublicKey } from "./firebase-config.js?v=2.5.6";
+import { createReminder, updateReminder, createReminderService, scheduleReminder } from "./reminders.js?v=2.5.6";
 
 const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
@@ -15,7 +15,7 @@ const text = {
   en: {
     tasks:"Tasks",history:"History",areas:"Areas",work:"Work",private:"Private",signout:"Sign out",addTask:"Add task",
     cancel:"Cancel",save:"Save",move:"Move",moveTask:"Move task",newTask:"New task",editTask:"Edit task",
-    newList:"New list",editList:"Edit list",listName:"List name",taskPlaceholder:"What needs to be done?",
+    newList:"New list",editList:"Edit list",listName:"List name",taskPlaceholder:"What to do?",taskRequired:"Enter a task to save",
     taskCount:"tasks",empty:"Nothing here",emptyHint:"Add a task and keep it simple.",edit:"Edit",delete:"Delete",
     restore:"Restore",done:"Done",completed:"Completed",completeTitle:"Mark as done?",
     completeBody:"This task will move to History and receive today’s completion date.",
@@ -27,7 +27,7 @@ const text = {
   he: {
     tasks:"משימות",history:"היסטוריה",areas:"תחומים",work:"עבודה",private:"פרטי",signout:"יציאה",addTask:"הוסף משימה",
     cancel:"ביטול",save:"שמירה",move:"העברה",moveTask:"העברת משימה",newTask:"משימה חדשה",editTask:"עריכת משימה",
-    newList:"רשימה חדשה",editList:"עריכת רשימה",listName:"שם הרשימה",taskPlaceholder:"מה צריך לעשות?",
+    newList:"רשימה חדשה",editList:"עריכת רשימה",listName:"שם הרשימה",taskPlaceholder:"מה צריך לעשות?",taskRequired:"יש להקליד משימה כדי לשמור",
     taskCount:"משימות",empty:"אין כאן משימות",emptyHint:"הוסף משימה ושמור על זה פשוט.",edit:"עריכה",delete:"מחיקה",
     restore:"שחזור",done:"הושלם",completed:"הושלם",completeTitle:"לסמן כהושלם?",
     completeBody:"המשימה תסומן כהושלמה, יתווסף לה תאריך והיא תעבור לתחתית הרשימה.",
@@ -147,7 +147,8 @@ let voiceSupported=true;
 function setVoiceButton(listening){
   const button=$("#voiceTaskBtn");
   button.classList.toggle("listening",listening);
-  button.innerHTML=listening?"⏹️ <span>עצור הקלטה</span>":"🎙️ <span>הקלט</span>";
+  const english=contentLanguage()==="en";
+  button.innerHTML=listening?`⏹️ <span>${english?"Stop":"עצור"}</span>`:`🎙️ <span>${english?"Record":"הקלט"}</span>`;
 }
 
 function initVoiceInput(){
@@ -176,7 +177,7 @@ function initVoiceInput(){
     baseText=input.value.trim();
     const language=contentLanguage();
     voiceRecognition.lang=language==="he"?"he-IL":"en-US";
-    status.textContent=language==="he"?"מקשיב בעברית…":"Listening in English…";
+    status.textContent=language==="he"?"מקליט…":"Recording…";
     try{voiceRecognition.start();}catch(error){console.error(error);status.textContent="לא ניתן להתחיל הקלטה. נסה שוב.";}
   };
   voiceRecognition.onstart=()=>{voiceListening=true;setVoiceButton(true);};
@@ -186,6 +187,7 @@ function initVoiceInput(){
     const input=$("#taskText");
     input.value=[baseText,transcript.trim()].filter(Boolean).join(" ");
     input.dir=contentDirection();
+    updateTaskSaveState();
   };
   voiceRecognition.onerror=event=>{
     console.error(event.error);
@@ -194,7 +196,7 @@ function initVoiceInput(){
   };
   voiceRecognition.onend=()=>{
     voiceListening=false;setVoiceButton(false);
-    if(!status.textContent.includes("לא")&&!status.textContent.includes("שגיאת"))status.textContent="ההקלטה הסתיימה — ניתן לערוך ולשמור";
+    if(!status.textContent.includes("לא")&&!status.textContent.includes("שגיאת"))status.textContent=contentLanguage()==="he"?"ההקלטה הסתיימה":"Recording complete";
     $("#taskText").focus();
   };
 }
@@ -202,7 +204,13 @@ function initVoiceInput(){
 function resetVoiceInput(){
   if(voiceListening&&voiceRecognition)voiceRecognition.stop();
   setVoiceButton(false);
-  $("#voiceStatus").textContent=voiceSupported?(contentLanguage()==="he"?"זיהוי דיבור בעברית":"Speech recognition in English"):"להכתבה קולית יש לפתוח את האפליקציה ב-Chrome";
+  $("#voiceStatus").textContent=voiceSupported?"":"להכתבה קולית יש לפתוח את האפליקציה ב-Chrome";
+}
+
+function updateTaskSaveState(){
+  const empty=!$("#taskText").value.trim();
+  $("#saveTaskBtn").disabled=empty;
+  $("#taskSaveHint").textContent=empty?t("taskRequired"):"";
 }
 
 async function login() {
@@ -492,7 +500,6 @@ function openTaskMenu(anchor,task) {
 
 function openTask(task=null,presetDate="") {
   closeMenus(); state.editingTask=task;
-  $("#saveTaskBtn").disabled=false;
   const category=state.categories.find(c=>c.id===(task?.categoryId||state.selected));
   if(!category){openCategory();toast("כדי להוסיף משימה, צור רשימה תחילה");return;}
   $("#taskDialogTitle").textContent=task?t("editTask"):t("newTask");
@@ -512,6 +519,7 @@ function openTask(task=null,presetDate="") {
   $("#customInterval").value=reminder?.customRepeat?.interval||1;$("#customUnit").value=reminder?.customRepeat?.unit||"day";
   updateReminderFields();
   resetVoiceInput();
+  updateTaskSaveState();
   $("#taskDialog").showModal(); setTimeout(()=>$("#taskText").focus(),50);
 }
 async function createTask(value,dueDate,dueTime,reminder,urgent=false){
@@ -821,7 +829,7 @@ $("#openExactAlarmSettingsBtn").onclick=openExactAlarmSettings;
 $$("[data-area]").forEach(el=>el.onclick=()=>selectArea(el.dataset.area));
 $("#addTaskTop").onclick=()=>openTask();$("#addTaskFab").onclick=()=>openTask();$("#manageAddCategoryBtn").onclick=addManagedCategory;
 $("#calendarPrev").onclick=()=>shiftCalendarMonth(-1);$("#calendarNext").onclick=()=>shiftCalendarMonth(1);$("#calendarAddTask").onclick=openTaskForDate;
-$("#taskText").oninput=event=>event.target.dir=contentDirection();
+$("#taskText").oninput=event=>{event.target.dir=contentDirection();updateTaskSaveState();};
 $("#categoryName").oninput=event=>event.target.dir=contentDirection();
 $("#taskForm").onsubmit=saveTask;$("#categoryForm").onsubmit=saveCategory;$("#moveForm").onsubmit=moveTask;$("#confirmForm").onsubmit=confirmAction;$("#settingsForm").onsubmit=saveSettings;
 $("#taskDate").oninput=updateScheduleSummary;$("#taskTime").oninput=updateScheduleSummary;
@@ -836,7 +844,7 @@ if("serviceWorker" in navigator){
     reloadingForUpdate=true;
     location.reload();
   });
-  navigator.serviceWorker.register("./service-worker.js?v=2.5.5",{updateViaCache:"none"})
+  navigator.serviceWorker.register("./service-worker.js?v=2.5.6",{updateViaCache:"none"})
     .then(registration=>registration.update())
     .catch(console.error);
 }
